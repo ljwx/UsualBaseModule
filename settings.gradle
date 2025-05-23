@@ -22,3 +22,8 @@ dependencyResolutionManagement {
 rootProject.name = "UsualBaseModule"
 include ':app'
 include ':basedefine'
+include ':baseactivity'
+include ':basebase'
+include ':basepage'
+include ':basedialog'
+include ':baseresource'
