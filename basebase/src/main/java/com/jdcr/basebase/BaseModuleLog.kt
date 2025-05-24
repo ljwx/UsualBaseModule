@@ -27,6 +27,7 @@ object BaseModuleLog {
     private val repository = prefix + "repository"
     private val permission = prefix + "permission"
     private val loading = prefix + "loading"
+    private val multipleState = prefix + "multipleState"
 
     fun i(tag: String, msg: String) {
         Log.i(tag, msg)
@@ -94,6 +95,10 @@ object BaseModuleLog {
 
     fun dLoading(content: String, className: String? = null) {
         Log.d(loading, content + (if (className.isNullOrEmpty()) "" else "-$className"))
+    }
+
+    fun dMultipleState(content: String, className: String? = null) {
+        Log.d(multipleState, content + (if (className.isNullOrEmpty()) "" else "-$className"))
     }
 
 }

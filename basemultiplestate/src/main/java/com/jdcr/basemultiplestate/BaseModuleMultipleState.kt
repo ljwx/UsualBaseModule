@@ -7,6 +7,7 @@ import android.view.animation.Animation
 import android.widget.FrameLayout
 import android.widget.ViewFlipper
 import androidx.annotation.LayoutRes
+import com.jdcr.basebase.BaseModuleLog
 import com.jdcr.basedefine.multiplestate.IViewStateLayout
 import com.jdcr.basedefine.multiplestate.MultipleStateType
 
@@ -28,7 +29,7 @@ class BaseModuleMultipleState @JvmOverloads constructor(
         private var outAnimationDefault: Animation? = null
 
         fun setGlobalStateLayout(
-            @MultipleStateType.MultipleStateType state: Int,
+            @MultipleStateType.MultipleStateType state: String,
             @LayoutRes layout: Int
         ) {
             when (state) {
@@ -193,7 +194,8 @@ class BaseModuleMultipleState @JvmOverloads constructor(
         }
     }
 
-    private fun addStateView(@MultipleStateType.MultipleStateType state: Int, view: View) {
+    private fun addStateView(@MultipleStateType.MultipleStateType state: String, view: View) {
+        BaseModuleLog.dMultipleState("为" + state + "添加视图")
         flipperView?.addView(view)
         viewIndex += 1
         when (state) {
@@ -206,7 +208,8 @@ class BaseModuleMultipleState @JvmOverloads constructor(
         }
     }
 
-    private fun showState(@MultipleStateType.MultipleStateType state: Int) {
+    private fun showState(@MultipleStateType.MultipleStateType state: String) {
+        BaseModuleLog.dMultipleState("显示" + state + "视图")
         var index: Int? = null
         when (state) {
             MultipleStateType.LOADING -> loadingIndex?.let { index = it }

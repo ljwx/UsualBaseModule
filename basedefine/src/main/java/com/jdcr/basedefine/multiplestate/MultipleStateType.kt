@@ -1,17 +1,17 @@
 package com.jdcr.basedefine.multiplestate
 
-import androidx.annotation.IntDef
+import androidx.annotation.StringDef
 
 object MultipleStateType {
 
-    const val CONTENT = 0
-    const val LOADING = 1
-    const val EMPTY = 2
-    const val ERROR = 3
-    const val OFFLINE = 4
-    const val EXTEND = 5
+    const val CONTENT = "CONTENT"
+    const val LOADING = "LOADING"
+    const val EMPTY = "EMPTY"
+    const val ERROR = "ERROR"
+    const val OFFLINE = "OFFLINE"
+    const val EXTEND = "EXTEND"
 
-    @IntDef(
+    @StringDef(
         CONTENT,
         LOADING,
         EMPTY,
