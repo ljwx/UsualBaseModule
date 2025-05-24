@@ -69,4 +69,5 @@ dependencies {
     implementation project(path: ":basepage")
     implementation project(path: ":baseresource")
     implementation project(path: ":basedialog")
+    implementation project(path: ":basemultiplestate")
 }

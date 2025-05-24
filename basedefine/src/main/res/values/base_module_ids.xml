@@ -8,6 +8,8 @@
     <item name="base_module_dialog_negative" type="id"/>
 
     <!---->
+    <item name="base_module_multiple_state_layout_default" type="id" />
+
     <item name="base_module_page_refresh_layout" type="id" />
     <item name="base_module_quick_state_layout" type="id" />
     <item name="base_module_quick_refresh_layout" type="id" />
