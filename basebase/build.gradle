@@ -39,5 +39,6 @@ dependencies {
 //    androidTestImplementation libs.androidx.espresso.core
 
     api project(path: ':basedefine')
+    api project(path: ':baseresource')
 
 }

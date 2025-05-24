@@ -7,6 +7,8 @@
     <color name="base_resource_black">#FF000000</color>
     <color name="base_resource_white">#FFFFFFFF</color>
     <color name="base_resource_transparent">#00000000</color>
+    <color name="base_resource_transparent_half_black">#88000000</color>
+    <color name="base_resource_transparent_half_white">#88ffffff</color>
 
     <color name="base_resource_green_1abb92">#1ABB92</color>
     <color name="base_resource_green_00ca83">#00CA83</color>
