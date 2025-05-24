@@ -6,12 +6,14 @@ object BaseModuleLog {
 
     private val prefix = "tbm_"
     private val moduleApp = "app_"
+    private val modulePage = "page_"
     private val moduleActivity = "actvy_"
     private val moduleFragment = "frgmt_"
     private val moduleToolbar = "tolba_"
     private val moduleRecycler = "recyc_"
     private val moduleScaffold = "scafd_"
 
+    private val pageRun = prefix + modulePage + "run"
     private val activityRun = prefix + moduleActivity + "run"
     private val activityStart = prefix + moduleActivity + "start"
     private val fragmentRun = prefix + moduleFragment + "run"
@@ -24,6 +26,7 @@ object BaseModuleLog {
     private val viewmodel = prefix + "viewmodel"
     private val repository = prefix + "repository"
     private val permission = prefix + "permission"
+    private val loading = prefix + "loading"
 
     fun i(tag: String, msg: String) {
         Log.i(tag, msg)
@@ -39,6 +42,10 @@ object BaseModuleLog {
 
     fun e(tag: String, msg: String) {
         Log.e(tag, msg)
+    }
+
+    fun dPageRun(content: String, className: String? = null) {
+        Log.d(pageRun, content + (if (className.isNullOrEmpty()) "" else "-$className"))
     }
 
     fun dActivity(content: String, className: String? = null) {
@@ -83,6 +90,10 @@ object BaseModuleLog {
 
     fun dPermission(content: String, className: String? = null) {
         Log.d(permission, content + (if (className.isNullOrEmpty()) "" else "-$className"))
+    }
+
+    fun dLoading(content: String, className: String? = null) {
+        Log.d(loading, content + (if (className.isNullOrEmpty()) "" else "-$className"))
     }
 
 }
