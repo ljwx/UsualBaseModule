@@ -13,9 +13,12 @@
     <color name="base_resource_green_1abb92">#1ABB92</color>
     <color name="base_resource_green_00ca83">#00CA83</color>
 
+    <color name="base_resource_grey_fefefe">#FeFeFe</color>
     <color name="base_resource_grey_f6f8fa">#F6F8FA</color>
     <color name="base_resource_grey_f4f5f7">#F4F5F7</color>
+    <color name="base_resource_grey_efefef">#EFEFEF</color>
     <color name="base_resource_grey_eeeeee">#EEEEEE</color>
+    <color name="base_resource_grey_dcdcdc">#dcdcdc</color>
     <color name="base_resource_grey_aaaaaa">#AAAAAA</color>
     <color name="base_resource_grey_888888">#888888</color>
 
@@ -30,8 +33,6 @@
     <color name="base_resource_orange_ff9458">#FF9458</color>
 
     <color name="base_resource_red_fe6453">#FE6453</color>
-
-    <color name="base_resource_divider_dcdcdc">#dcdcdc</color>
 
     <color name="base_resource_page_background_grey">@color/base_resource_grey_f4f5f7</color>
 

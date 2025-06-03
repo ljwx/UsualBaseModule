@@ -7,7 +7,7 @@
         android:height="0.8dp"
         android:gravity="bottom">
         <shape>
-            <solid android:color="@color/base_resource_grey_dcdcdc" />
+            <solid android:color="@color/base_resource_grey_efefef" />
         </shape>
     </item>
 </layer-list>
