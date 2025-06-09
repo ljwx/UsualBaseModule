@@ -4,8 +4,8 @@ plugins {
 }
 
 android {
-    namespace 'com.jdcr.basebase'
-    compileSdk 35
+    namespace 'com.jdcr.baseeventbus'
+    compileSdk 33
 
     defaultConfig {
         minSdk 21
@@ -30,10 +30,13 @@ android {
 }
 
 dependencies {
+
+    api 'androidx.appcompat:appcompat:1.3.1'
+
     // Kotlin 标准库 - 提供基本的 Kotlin 语言特性支持
     // 版本 1.8.0 是一个相对稳定且广泛使用的版本
     api "org.jetbrains.kotlin:kotlin-stdlib:1.8.0"
-    
+
     // Kotlin 协程 - 提供 Flow 和协程支持
     // 版本 1.6.4 是一个稳定版本，与大多数 Android 项目兼容
     // 注意：这里使用 api 而不是 implementation，因为外部模块可能需要使用协程功能
@@ -43,7 +46,4 @@ dependencies {
     // 版本 1.5.0 是一个稳定版本，与大多数 Android 项目兼容
     api "androidx.annotation:annotation:1.5.0"
 
-    // 项目依赖
-    api project(path: ':basedefine')
-    api project(path: ':baseresource')
 }
