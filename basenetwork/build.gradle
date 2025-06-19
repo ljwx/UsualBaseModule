@@ -1,0 +1,57 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlinSerialization)
+}
+
+android {
+    namespace 'com.jdcr.network'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 21
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+}
+
+dependencies {
+    // Ktor 客户端核心
+    implementation "io.ktor:ktor-client-core:2.3.7"
+    // Android 平台引擎（基于 OkHttp）
+    implementation "io.ktor:ktor-client-android:2.3.7"
+    // JSON 序列化支持
+    implementation "io.ktor:ktor-client-content-negotiation:2.3.7"
+//    implementation "io.ktor:ktor-serialization-gson:2.3.7"
+    implementation "io.ktor:ktor-serialization-kotlinx-json:2.3.7"
+    // 日志拦截器（可选）
+    implementation "io.ktor:ktor-client-logging:2.3.7"
+    
+    // Coroutines
+    api "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
+    
+    // Retrofit
+    api 'com.squareup.retrofit2:retrofit:2.9.0'
+    api 'com.squareup.retrofit2:converter-gson:2.9.0'
+    
+    // OkHttp
+    api 'com.squareup.okhttp3:okhttp:4.9.3'
+    api 'com.squareup.okhttp3:logging-interceptor:4.9.3'
+
+    implementation project(path: ":basekmplog")
+}

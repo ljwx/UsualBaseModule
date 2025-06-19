@@ -1,37 +1,47 @@
 [versions]
-agp = "8.9.1"
-kotlin = "2.0.21"
-coreKtx = "1.16.0"
-junit = "4.14-SNAPSHOT"
-junitVersion = "1.2.1"
-espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.9.0"
-activityCompose = "1.10.1"
-composeBom = "2024.09.00"
-appcompat = "1.7.0"
-material = "1.12.0"
+agp = "8.9.1" # Android Gradle 插件，用于构建和打包 Android 应用
+kotlin = "2.0.21" # Kotlin 编程语言核心版本
+coreKtx = "1.16.0" # AndroidX Core 库的 Kotlin 扩展，提供更便捷的 Android API 访问
+junit = "4.14-SNAPSHOT" # JUnit 4 单元测试框架
+junitVersion = "1.2.1" # AndroidX Test JUnit 扩展，提供 Android 专用的测试功能
+espressoCore = "3.6.1" # Espresso UI 测试框架核心库
+lifecycleRuntimeKtx = "2.9.0" # AndroidX Lifecycle 库的 Kotlin 扩展，管理组件生命周期
+activityCompose = "1.10.1" # Activity 与 Jetpack Compose 集成的支持库
+composeBom = "2024.09.00" # Jetpack Compose 版本管理 BOM，确保组件版本兼容性
+appcompat = "1.7.0" # 提供对旧 Android 版本的兼容功能
+material = "1.12.0" # Material Design 组件库，用于构建符合设计规范的 UI
+kotlinStdlib = "2.0.21" # Kotlin 标准库，包含核心语言功能
+kotlinTest = "2.0.21" # Kotlin 测试库，提供测试相关的工具和注解
+runner = "1.6.2" # AndroidX Test Runner，用于运行 Android 测试
+core = "1.6.1" # AndroidX Test Core 库，提供基础测试功能
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
-androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-androidx-ui = { group = "androidx.compose.ui", name = "ui" }
-androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" } # 提供 Android 核心 API 的 Kotlin 扩展，如 Context 和 View 的扩展函数
+junit = { group = "junit", name = "junit", version.ref = "junit" } # JUnit 4 单元测试框架，用于编写和运行 Java/Kotlin 单元测试
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" } # AndroidX 对 JUnit 的扩展，提供 Android 专用的测试功能
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" } # Espresso UI 测试框架，用于编写自动化 UI 测试
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" } # 提供 Lifecycle-aware 组件的 Kotlin 扩展，如 ViewModel 和 LiveData
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" } # 用于在 Activity 中集成 Jetpack Compose UI 框架
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" } # Jetpack Compose 的 BOM（Bill of Materials），确保所有 Compose 组件版本兼容
+androidx-ui = { group = "androidx.compose.ui", name = "ui" } # Jetpack Compose 的核心 UI 库，提供基础布局和绘图功能
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" } # Compose 的图形处理库，用于绘制和操作图形元素
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" } # Compose 开发工具库，提供预览和调试功能
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" } # Compose 预览工具库，用于在 IDE 中预览 UI 组件
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" } # Compose UI 测试的清单文件依赖
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" } # 用于在 JUnit 4 框架下编写 Compose UI 测试
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" } # Material Design 3 组件库的 Compose 实现，提供现代设计风格的 UI 组件
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" } # 提供对旧 Android 版本的兼容性支持，如 ActionBar 和主题
+material = { group = "com.google.android.material", name = "material", version.ref = "material" } # Material Design 2 组件库，用于传统 XML 布局或混合开发
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlinStdlib" } # Kotlin 标准库，包含核心语言功能和常用工具类
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" } # Kotlin 测试库，提供测试相关的注解和工具
+androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" } # AndroidX 测试运行器，用于执行 Android 测试
+androidx-core = { group = "androidx.test", name = "core", version.ref = "core" } # AndroidX 测试核心库，提供基础测试功能和工具类
 
 [plugins]
-android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-android-library = { id = "com.android.library", version.ref = "agp" }
-
+android-application = { id = "com.android.application", version.ref = "agp" } # Android 应用插件，用于构建 Android 应用 APK
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" } # Kotlin Android 插件，支持在 Android 项目中使用 Kotlin
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # Kotlin Compose 插件，提供对 Jetpack Compose 的编译支持
+android-library = { id = "com.android.library", version.ref = "agp" } # Android 库插件，用于构建 Android 库模块（AAR）
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" } # Kotlin 多平台插件，支持跨 Android、iOS 等平台共享代码
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" } # 支持 Kotlin 多平台库与 Android 集成的插件
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" } # Kotlin 序列化插件，提供 @Serializable 注解和 JSON 序列化/反序列化功能
