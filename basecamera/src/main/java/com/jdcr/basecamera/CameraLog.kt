@@ -2,15 +2,14 @@ package com.jdcr.basecamera
 
 import android.util.Log
 
-
 object CameraLog {
 
     fun d(content: String) {
-        Log.d("摄像头", content)
+        Log.d("base_camera", content)
     }
 
     fun e(content: String) {
-        Log.e("摄像头", content)
+        Log.d("base_camera", content)
     }
 
 }

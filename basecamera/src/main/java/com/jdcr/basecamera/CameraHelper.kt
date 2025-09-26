@@ -1,14 +1,12 @@
 package com.jdcr.basecamera
 
+import android.content.ContentValues
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
-import android.media.Image
 import android.net.Uri
-import android.util.Base64
+import android.os.Build
+import android.provider.MediaStore
 import android.view.Surface
+import android.view.ViewGroup
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraState
@@ -16,11 +14,13 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.camera.core.impl.ImageOutputConfig.RotationValue
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class CameraHelper(
@@ -29,6 +29,46 @@ class CameraHelper(
     private val previewView: PreviewView,
     private val prepareListener: (() -> Unit)
 ) {
+
+    companion object {
+        private fun getCacheDir(context: Context): String {
+            val path = context.cacheDir.path + "/camera/capture_temp"
+            if (!File(path).exists()) {
+                File(path).mkdirs()
+            }
+            return path
+        }
+
+        private fun getContentValues(fileName: String? = null): ContentValues {
+            val name = fileName ?: SimpleDateFormat(
+                "MM-dd-HH-mm-ss-SS",
+                Locale.US
+            ).format(System.currentTimeMillis())
+            return ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Images")
+                }
+            }
+        }
+
+        fun getCacheFileOptions(context: Context): ImageCapture.OutputFileOptions {
+            val name = "temp_" + System.currentTimeMillis() + ".jpg"
+            return ImageCapture.OutputFileOptions.Builder(File(getCacheDir(context), name)).build()
+        }
+
+        fun getOutputFileOptions(
+            context: Context,
+            fileName: String? = null
+        ): ImageCapture.OutputFileOptions {
+            return ImageCapture.OutputFileOptions.Builder(
+                context.contentResolver,
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                getContentValues(fileName)
+            ).build()
+        }
+    }
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
@@ -64,7 +104,7 @@ class CameraHelper(
     private fun getPreview(previewView: PreviewView): Preview {
         previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         val rotation = previewView.display.rotation
-        CameraLog.d("preview方向:$rotation")
+        CameraLog.d("启动预览，preview方向:$rotation")
         preview = preview ?: Preview.Builder().build().also {
             it.setSurfaceProvider(previewView.surfaceProvider)
         }
@@ -144,10 +184,11 @@ class CameraHelper(
                 // 相机状态变化
                 when (state.type) {
                     CameraState.Type.PENDING_OPEN -> CameraLog.d("相机待启动")
-                    CameraState.Type.OPENING -> CameraLog.d("相机正在启动")
-                    CameraState.Type.OPEN -> CameraLog.d("相机已启动，可预览")
-                    CameraState.Type.CLOSING -> CameraLog.d("相机正在关闭")
+//                    CameraState.Type.OPENING -> CameraLog.d("相机正在启动")
+//                    CameraState.Type.OPEN -> CameraLog.d("相机已启动，可预览")
+//                    CameraState.Type.CLOSING -> CameraLog.d("相机正在关闭")
                     CameraState.Type.CLOSED -> CameraLog.d("相机已关闭")
+                    else -> ""
                 }
             }
             commonStateListener?.onCameraReady()
@@ -159,6 +200,15 @@ class CameraHelper(
             return false
         }
 
+    }
+
+    private fun invertRotation(rotation: Int): Int {
+        return when (rotation) {
+            Surface.ROTATION_0 -> Surface.ROTATION_0
+            Surface.ROTATION_90 -> Surface.ROTATION_270
+            Surface.ROTATION_180 -> Surface.ROTATION_180
+            else -> Surface.ROTATION_90
+        }
     }
 
     private fun startCameraInternal(): Boolean {
@@ -186,12 +236,12 @@ class CameraHelper(
     }
 
     fun captureFile(
-        context: Context,
+        fileOption: ImageCapture.OutputFileOptions,
         callback: (success: Boolean, message: String?, uri: Uri?) -> Unit
     ) {
-        val option = CTCameraUtils.getCacheOptions(context)
+        CameraLog.d("开始拍照，结果为照片文件")
         getCapture().takePicture(
-            option,
+            fileOption,
             cameraExecutor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
@@ -207,18 +257,40 @@ class CameraHelper(
             })
     }
 
-    fun changeRotation(@RotationValue rotation: Int) {
-        preview = Preview.Builder().setTargetRotation(rotation).build().also {
-            it.setSurfaceProvider(previewView.surfaceProvider)
+    fun changeRotation(viewRotation: Float) {
+        previewView.rotation = viewRotation
+        relayoutPreviewView(viewRotation)
+        // 前置摄像头预览不再镜像，因此scaleX始终为1
+        previewView.scaleX = 1f
+    }
+
+    private fun relayoutPreviewView(previewRotation: Float) {
+        val parent = (previewView.parent as? ViewGroup)
+        val parentWidth = parent?.width
+        val parentHeight = parent?.width
+        when (previewRotation) {
+            90f -> {
+                previewView.layoutParams.width = parentHeight ?: previewView.width
+                previewView.layoutParams.height = parentWidth ?: previewView.height
+            }
+
+            27f -> {
+                previewView.layoutParams.width = parentHeight ?: previewView.width
+                previewView.layoutParams.height = parentHeight ?: previewView.height
+            }
         }
-        startCameraInternal()
-        CameraLog.d("修改当前方向为:$rotation")
+        previewView.invalidate()
+        previewView.requestLayout()
     }
 
     fun switch(): Boolean {
         lensFacing =
             if (lensFacing == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
         return startCameraInternal()
+    }
+
+    fun stopPreview() {
+        cameraProvider?.unbindAll()
     }
 
     fun close() {
@@ -230,8 +302,16 @@ class CameraHelper(
         return lensFacing
     }
 
+    fun isFrontFacing(): Boolean {
+        return getCurrentLensFacing() == CameraSelector.LENS_FACING_FRONT
+    }
+
     fun getCurrentRotation(): Int {
         return preview?.targetRotation ?: Surface.ROTATION_0
+    }
+
+    fun getPreviewViewRotation(): Float {
+        return previewView.rotation
     }
 
     private fun onError(code: Int, message: String) {
