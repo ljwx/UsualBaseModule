@@ -5,328 +5,290 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
-import kotlin.math.ceil
-import kotlin.math.max
-import kotlin.math.min
+import androidx.exifinterface.media.ExifInterface
+import java.io.*
 
 /**
- * 一个功能强大且灵活的图片压缩工具类。
+ * 一个健壮且灵活的图片压缩器，支持链式调用配置。
  *
- * 特点:
- * - 支持链式调用，自由组合压缩选项。
- * - 支持多种输入源 (Bitmap, File, Uri, InputStream, ByteArray)。
- * - 支持多种输出形式 (Bitmap, ByteArray, File)。
- * - 可配置输出格式 (JPEG, PNG, WEBP)。
- * - 可配置图片质量。
- * - 可配置最大宽度和高度，并保持长宽比。
- * - 可配置目标文件大小上限，工具会自动调整质量以满足要求。
- * - 内存友好，通过采样率(inSampleSize)避免加载大图导致OOM。
+ * 设计为 class 而非 object，以确保每个压缩任务的配置是独立的，从而实现线程安全。
  *
- * @author Gemini
+ * 功能:
+ * - 支持从 File 或 Uri 加载图片。
+ * - 按尺寸缩放（保持/不保持宽高比）。
+ * - 按质量压缩。
+ * - 按目标文件大小压缩（例如，压缩到500KB以下）。
+ * - 支持输出 JPEG, PNG, WEBP 格式。
+ * - 自动处理EXIF旋转信息。
+ * - 注重内存管理，防止OOM和内存泄漏。
  *
- * 使用方法:
+ * 使用示例:
  * ```
- * // 必须在后台线程调用
- * val resultFile = ImageCompressor.with(context)
- * .load(sourceFile)          // 加载源文件
- * .maxSize(1280, 1280)       // 设置最大宽高
- * .maxFileSize(200)          // 设置最大文件大小 (KB)
- * .quality(85)               // 初始质量
- * .format(Bitmap.CompressFormat.JPEG) // 输出格式
- * .toFile(destinationFile)   // 输出为文件
+ * // 必须在后台线程调用!
+ * val compressedFile = ImageCompressor.with(context, imageUri)
+ *     .resize(1080)
+ *     .targetSize(500) // 压缩到500KB以下
+ *     .format(ImageCompressor.Format.WEBP)
+ *     .toFile(destinationFile) // 返回 File
  * ```
  */
-class ImageCompressor private constructor(private val context: Context) {
+class ImageCompressor private constructor(
+    // 使用 InputStream 的提供者 (lambda)，因为流只能被消费一次
+    // 我们需要能够重复打开新的流（一次用于读尺寸，一次用于解码）
+    private val inputStreamProvider: () -> InputStream?
+) {
 
-    private lateinit var builder: Builder
+    // 默认配置
+    private var maxSize = 0
+    private var keepAspectRatio = true
+    private var quality = 90
+    private var outputFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG
+    private var targetSizeKb = 0
 
     companion object {
         /**
-         * 开始构建压缩任务。
-         * @param context Context对象，用于访问ContentResolver等。
+         * 从 File 初始化压缩器。
          */
-        fun with(context: Context): ImageCompressor {
-            return ImageCompressor(context)
-        }
-    }
-
-    /**
-     * 加载 Bitmap 作为压缩源。
-     */
-    fun load(bitmap: Bitmap): Builder {
-        builder = Builder(Input.BitmapInput(bitmap))
-        return builder
-    }
-
-    /**
-     * 加载 File 作为压缩源。
-     */
-    fun load(file: File): Builder {
-        builder = Builder(Input.FileInput(file))
-        return builder
-    }
-
-    /**
-     * 加载 Uri 作为压缩源 (例如: from ContentResolver)。
-     */
-    fun load(uri: Uri): Builder {
-        builder = Builder(Input.UriInput(uri, context))
-        return builder
-    }
-
-    /**
-     * 加载 ByteArray 作为压缩源。
-     */
-    fun load(byteArray: ByteArray): Builder {
-        builder = Builder(Input.ByteArrayInput(byteArray))
-        return builder
-    }
-
-    /**
-     * 加载 InputStream 作为压缩源。
-     * **注意**: InputStream将被完全消耗且不会被关闭。
-     */
-    fun load(inputStream: InputStream): Builder {
-        builder = Builder(Input.StreamInput(inputStream))
-        return builder
-    }
-
-    inner class Builder internal constructor(private val input: Input) {
-        private var maxWidth: Int = 1080
-        private var maxHeight: Int = 1920
-        private var quality: Int = 90
-        private var maxFileSizeKb: Int? = null
-        private var keepAspectRatio: Boolean = true
-        private var outputFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG
-
-        /**
-         * 设置压缩后的图片最大宽度和高度。
-         * @param maxWidth 最大宽度 (px)。
-         * @param maxHeight 最大高度 (px)。
-         */
-        fun maxSize(maxWidth: Int, maxHeight: Int): Builder = apply {
-            this.maxWidth = maxWidth
-            this.maxHeight = maxHeight
-        }
-
-        /**
-         * 设置是否保持原始图片的长宽比。默认为 true。
-         * 如果设为 false，图片将被拉伸至 `maxSize` 指定的尺寸。
-         */
-        fun keepAspectRatio(keep: Boolean): Builder = apply {
-            this.keepAspectRatio = keep
-        }
-
-        /**
-         * 设置压缩质量。范围 0-100。
-         * 对于JPEG和WEBP格式有效。如果设置了 `maxFileSize`，此值为初始尝试质量。
-         */
-        fun quality(quality: Int): Builder = apply {
-            this.quality = quality.coerceIn(0, 100)
-        }
-
-        /**
-         * 设置压缩后文件的最大大小（单位 KB）。
-         * 工具会通过循环降低质量来尝试达到此目标。
-         * @param sizeInKb 文件大小上限 (KB)。
-         */
-        fun maxFileSize(sizeInKb: Int): Builder = apply {
-            this.maxFileSizeKb = sizeInKb
-        }
-
-        /**
-         * 设置输出图片的格式。
-         * @param format [Bitmap.CompressFormat.JPEG], [Bitmap.CompressFormat.PNG], [Bitmap.CompressFormat.WEBP]。
-         */
-        fun format(format: Bitmap.CompressFormat): Builder = apply {
-            this.outputFormat = format
-        }
-
-        /**
-         * 执行压缩并返回一个 Bitmap。
-         * **警告**: 此方法不执行基于文件大小的压缩，因为它返回的是内存中的Bitmap。
-         * 如需控制文件大小，请使用 `asByteArray()` 或 `toFile()`。
-         */
-        fun asBitmap(): Bitmap {
-            val decodedBitmap = decodeSampledBitmap()
-            return scaleBitmap(decodedBitmap)
-        }
-
-        /**
-         * 执行压缩并返回一个 ByteArray。
-         */
-        fun asByteArray(): ByteArray {
-            val scaledBitmap = asBitmap()
-            return compressToByteArray(scaledBitmap)
-        }
-
-        /**
-         * 执行压缩并将结果保存到指定文件。
-         * @param destinationFile 目标文件。
-         * @return 写入成功的 [File] 对象。
-         */
-        fun toFile(destinationFile: File): File {
-            val byteArray = asByteArray()
-            FileOutputStream(destinationFile).use { it.write(byteArray) }
-            return destinationFile
-        }
-
-        // --- 内部核心方法 ---
-
-        /**
-         * 步骤1：从输入源解码Bitmap，同时使用inSampleSize进行第一次缩放，避免OOM。
-         */
-        private fun decodeSampledBitmap(): Bitmap {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            input.decodeBounds(options)
-
-            options.inSampleSize = calculateInSampleSize(options, maxWidth, maxHeight)
-            options.inJustDecodeBounds = false
-
-            return input.decode(options)
-                ?: throw IllegalStateException("Failed to decode bitmap from the input source.")
-        }
-
-        /**
-         * 步骤2：对解码后的Bitmap进行第二次精确缩放。
-         */
-        private fun scaleBitmap(bitmap: Bitmap): Bitmap {
-            val (srcWidth, srcHeight) = bitmap.width to bitmap.height
-            if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
-                return bitmap // 尺寸已达标，无需缩放
+        @JvmStatic
+        fun with(imageFile: File): ImageCompressor {
+            val provider = {
+                try {
+                    FileInputStream(imageFile)
+                } catch (e: IOException) {
+                    null
+                }
             }
+            return ImageCompressor(provider)
+        }
 
-            val scale: Float = if (keepAspectRatio) {
-                min(maxWidth.toFloat() / srcWidth, maxHeight.toFloat() / srcHeight)
-            } else {
-                // 不保持比例时，不应小于0，这里只是为了代码统一
-                max(maxWidth.toFloat() / srcWidth, maxHeight.toFloat() / srcHeight)
+        /**
+         * 从 Uri 初始化压缩器。Context 在这里是必需的，用于访问 ContentResolver。
+         */
+        @JvmStatic
+        fun with(context: Context, imageUri: Uri): ImageCompressor {
+            val provider = {
+                try {
+                    context.contentResolver.openInputStream(imageUri)
+                } catch (e: IOException) {
+                    null
+                }
             }
+            return ImageCompressor(provider)
+        }
+    }
 
-            val targetWidth: Int
-            val targetHeight: Int
+    // --- 配置方法 ---
 
-            if (keepAspectRatio) {
-                targetWidth = (srcWidth * scale).toInt()
-                targetHeight = (srcHeight * scale).toInt()
-            } else {
-                targetWidth = maxWidth
-                targetHeight = maxHeight
+    fun resize(maxSize: Int, keepAspectRatio: Boolean = true): ImageCompressor {
+        this.maxSize = maxSize
+        this.keepAspectRatio = keepAspectRatio
+        return this
+    }
+
+    fun quality(quality: Int): ImageCompressor {
+        this.quality = quality.coerceIn(0, 100)
+        return this
+    }
+
+    fun format(format: Bitmap.CompressFormat): ImageCompressor {
+        this.outputFormat = format
+        return this
+    }
+
+    fun targetSize(kb: Int): ImageCompressor {
+        this.targetSizeKb = kb
+        return this
+    }
+
+    // --- 最终执行方法 ---
+
+    /**
+     * 执行压缩并返回一个 Bitmap 对象。
+     * 警告：返回的 Bitmap 对象需要由调用者手动管理和回收，以避免内存泄漏。
+     * @return 压缩后的 Bitmap，如果失败则返回 null。
+     */
+    fun get(): Bitmap? {
+        var bitmap = processBitmap() ?: return null
+
+        val stream = if (targetSizeKb > 0) {
+            compressToTargetSize(bitmap)
+        } else {
+            compressByQuality(bitmap)
+        }
+
+        val resultBytes = stream.use { it.toByteArray() }
+
+        // 回收中间过程的bitmap
+        if (!bitmap.isRecycled) {
+            bitmap.recycle()
+        }
+
+        // 将最终的字节流解码回 Bitmap
+        return BitmapFactory.decodeByteArray(resultBytes, 0, resultBytes.size)
+    }
+
+    /**
+     * 执行压缩并将结果保存到文件。
+     * 这是推荐的方式，因为它处理了所有I/O和流，并自动管理内存。
+     * @param destinationFile 目标文件。
+     * @return 压缩成功则返回目标文件，否则返回 null。
+     */
+    fun toFile(destinationFile: File): File? {
+        val bitmap = processBitmap() ?: return null
+
+        val stream = if (targetSizeKb > 0) {
+            compressToTargetSize(bitmap)
+        } else {
+            compressByQuality(bitmap)
+        }
+
+        return try {
+            FileOutputStream(destinationFile).use { fos ->
+                stream.writeTo(fos)
             }
-
-            if (targetWidth == srcWidth && targetHeight == srcHeight) {
-                return bitmap
-            }
-
-            val matrix = Matrix().apply { setScale(scale, scale) }
-            val scaled = Bitmap.createBitmap(bitmap, 0, 0, srcWidth, srcHeight, matrix, true)
-            if (scaled != bitmap) {
+            destinationFile
+        } catch (e: IOException) {
+            e.printStackTrace()
+            null
+        } finally {
+            if (!bitmap.isRecycled) {
                 bitmap.recycle()
             }
-            return scaled
-        }
-
-        /**
-         * 步骤3：将最终的Bitmap压缩为ByteArray，如果需要，会循环降低质量以满足文件大小要求。
-         */
-        private fun compressToByteArray(bitmap: Bitmap): ByteArray {
-            val outputStream = ByteArrayOutputStream()
-            var currentQuality = this.quality
-
-            // 如果是PNG格式，则为无损压缩，质量和文件大小控制无意义
-            if (outputStream.use { bitmap.compress(outputFormat, currentQuality, it) }) {
-                if (outputFormat == Bitmap.CompressFormat.PNG || maxFileSizeKb == null) {
-                    val result = outputStream.toByteArray()
-                    bitmap.recycle()
-                    return result
-                }
+            try {
+                stream.close()
+            } catch (e: IOException) { /* ignore */
             }
-
-            // 循环压缩以满足文件大小要求 (仅对JPEG/WEBP有效)
-            while (outputStream.size() / 1024 > maxFileSizeKb!! && currentQuality > 0) {
-                outputStream.reset()
-                currentQuality -= 5 // 每次降低5点质量
-                bitmap.compress(outputFormat, currentQuality.coerceAtLeast(0), outputStream)
-            }
-
-            val result = outputStream.toByteArray()
-            bitmap.recycle() // 释放内存
-            outputStream.close()
-            return result
-        }
-
-        /**
-         * 计算最佳采样率 inSampleSize。
-         */
-        private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-            val (height: Int, width: Int) = options.outHeight to options.outWidth
-            var inSampleSize = 1
-
-            if (height > reqHeight || width > reqWidth) {
-                val halfHeight: Int = height / 2
-                val halfWidth: Int = width / 2
-
-                while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
-                    inSampleSize *= 2
-                }
-            }
-            return inSampleSize
         }
     }
 
-    // --- 输入源的抽象，用于统一处理不同类型的输入 ---
-    sealed class Input {
-        abstract fun decodeBounds(options: BitmapFactory.Options)
-        abstract fun decode(options: BitmapFactory.Options): Bitmap?
+    /**
+     * 统一处理Bitmap的加载、旋转和缩放。
+     */
+    private fun processBitmap(): Bitmap? {
+        // 1. 安全地加载初步缩放的Bitmap
+        var bitmap = decodeSampledBitmap() ?: return null
 
-        class BitmapInput(private val bitmap: Bitmap) : Input() {
-            override fun decodeBounds(options: BitmapFactory.Options) {
-                options.outWidth = bitmap.width
-                options.outHeight = bitmap.height
+        // 2. 修正图片方向
+        val rotatedBitmap = rotateBitmapIfRequired(bitmap)
+        if (rotatedBitmap != bitmap) {
+            bitmap.recycle()
+        }
+        bitmap = rotatedBitmap
+
+        // 3. 根据设置调整尺寸
+        if (maxSize > 0) {
+            val resizedBitmap = if (keepAspectRatio) {
+                resizeKeepingAspectRatio(bitmap)
+            } else {
+                resizeAndCenterCrop(bitmap)
             }
-            override fun decode(options: BitmapFactory.Options): Bitmap? = bitmap
+            if (resizedBitmap != bitmap) {
+                bitmap.recycle()
+            }
+            bitmap = resizedBitmap
+        }
+        return bitmap
+    }
+
+    // --- 核心实现（私有方法） ---
+
+    private fun decodeSampledBitmap(): Bitmap? {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        inputStreamProvider()?.use { BitmapFactory.decodeStream(it, null, options) }
+
+        val reqSize = if (maxSize > 0) maxSize else 2048 // 默认最大2048px，避免加载过大图片
+        options.inSampleSize = calculateInSampleSize(options, reqSize, reqSize)
+
+        options.inJustDecodeBounds = false
+        return try {
+            inputStreamProvider()?.use { BitmapFactory.decodeStream(it, null, options) }
+        } catch (e: OutOfMemoryError) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        reqWidth: Int,
+        reqHeight: Int
+    ): Int {
+        val (height: Int, width: Int) = options.run { outHeight to outWidth }
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
+    }
+
+    private fun rotateBitmapIfRequired(bitmap: Bitmap): Bitmap {
+        val exif = inputStreamProvider()?.use { ExifInterface(it) } ?: return bitmap
+
+        val orientation =
+            exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            else -> return bitmap
+        }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
+    private fun resizeKeepingAspectRatio(bitmap: Bitmap): Bitmap {
+        if (bitmap.width <= maxSize && bitmap.height <= maxSize) return bitmap
+        val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+        val (finalWidth, finalHeight) = if (ratio > 1) {
+            maxSize to (maxSize / ratio).toInt()
+        } else {
+            (maxSize * ratio).toInt() to maxSize
+        }
+        return Bitmap.createScaledBitmap(bitmap, finalWidth, finalHeight, true)
+    }
+
+    private fun resizeAndCenterCrop(bitmap: Bitmap): Bitmap {
+        val sourceWidth = bitmap.width
+        val sourceHeight = bitmap.height
+        val targetSize = maxSize
+
+        val scale = if (sourceWidth * 1f / targetSize > sourceHeight * 1f / targetSize) {
+            targetSize * 1f / sourceHeight
+        } else {
+            targetSize * 1f / sourceWidth
         }
 
-        class FileInput(private val file: File) : Input() {
-            override fun decodeBounds(options: BitmapFactory.Options) {
-                BitmapFactory.decodeFile(file.absolutePath, options)
-            }
-            override fun decode(options: BitmapFactory.Options): Bitmap? =
-                BitmapFactory.decodeFile(file.absolutePath, options)
+        val scaledWidth = (scale * sourceWidth).toInt()
+        val scaledHeight = (scale * sourceHeight).toInt()
+        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+
+        val x = (scaledBitmap.width - targetSize) / 2
+        val y = (scaledBitmap.height - targetSize) / 2
+        val croppedBitmap = Bitmap.createBitmap(scaledBitmap, x, y, targetSize, targetSize)
+
+        if (scaledBitmap != croppedBitmap) scaledBitmap.recycle()
+        return croppedBitmap
+    }
+
+    private fun compressByQuality(bitmap: Bitmap): ByteArrayOutputStream {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(outputFormat, quality, stream)
+        return stream
+    }
+
+    private fun compressToTargetSize(bitmap: Bitmap): ByteArrayOutputStream {
+        var stream = ByteArrayOutputStream()
+        var currentQuality = 95
+        bitmap.compress(outputFormat, currentQuality, stream)
+        while (stream.size() / 1024 > targetSizeKb && currentQuality > 10) {
+            stream.reset()
+            currentQuality -= 5
+            bitmap.compress(outputFormat, currentQuality, stream)
         }
-
-        class UriInput(private val uri: Uri, private val context: Context) : Input() {
-            private fun openInputStream(): InputStream? = context.contentResolver.openInputStream(uri)
-
-            override fun decodeBounds(options: BitmapFactory.Options) {
-                openInputStream()?.use { BitmapFactory.decodeStream(it, null, options) }
-            }
-            override fun decode(options: BitmapFactory.Options): Bitmap? =
-                openInputStream()?.use { BitmapFactory.decodeStream(it, null, options) }
-        }
-
-        class ByteArrayInput(private val byteArray: ByteArray): Input() {
-            override fun decodeBounds(options: BitmapFactory.Options) {
-                BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size, options)
-            }
-            override fun decode(options: BitmapFactory.Options): Bitmap? =
-                BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size, options)
-        }
-
-        class StreamInput(private val inputStream: InputStream): Input() {
-            // InputStream无法重复读取，所以需要先读入byte array
-            private val byteArray = inputStream.readBytes()
-
-            override fun decodeBounds(options: BitmapFactory.Options) {
-                ByteArrayInputStream(byteArray).use { BitmapFactory.decodeStream(it, null, options) }
-            }
-            override fun decode(options: BitmapFactory.Options): Bitmap? =
-                ByteArrayInputStream(byteArray).use { BitmapFactory.decodeStream(it, null, options) }
-        }
+        return stream
     }
 }
