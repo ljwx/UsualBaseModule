@@ -22,6 +22,16 @@ class BluetoothDeviceCommunicationHandler(
 ) {
 
     init {
+
+        fun removeExceptionOperation(characterUuid: String) {
+            core.pendingOperations[characterUuid]?.apply {
+                if (isActive) {
+                    resume(false, null)
+                }
+            }
+            core.pendingOperations.remove(characterUuid)
+        }
+
         core.getScope().launch {
             for (op in core.operationChannel) {
                 try {
@@ -47,18 +57,10 @@ class BluetoothDeviceCommunicationHandler(
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     BleLog.e("2.5执行队列任务时超时:${op.characterUuid}")
-                    core.pendingOperations[op.characterUuid.uppercase()]?.apply {
-                        if (isActive) {
-                            resume(false, null)
-                        }
-                    }
                 } catch (e: Exception) {
                     BleLog.e("2.5执行队列任务时异常:${op.characterUuid},$e")
-                    core.pendingOperations[op.characterUuid.uppercase()]?.apply {
-                        if (isActive) {
-                            resume(false, null)
-                        }
-                    }
+                } finally {
+                    removeExceptionOperation(op.characterUuid.uppercase())
                 }
             }
         }

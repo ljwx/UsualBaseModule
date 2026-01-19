@@ -5,6 +5,7 @@ const val MTU_DEFAULT_SIZE = 23
 data class BleScanConfig(
     val timeout: Long = 60000,
     val minRssi: Int = -100,
+    val filterNullName: Boolean = true,
     val expiredTimeMills: Int = 2000,
     val resultIntervalMills: Long = 200,
 )

@@ -10,6 +10,7 @@ import com.jdcr.baseble.core.communication.BleCommunicationBase
 import com.jdcr.baseble.core.communication.BleCommunicationBase.BleOperationResult
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -88,6 +89,11 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
         operation: BleCommunicateOperation.Write,
         byteData: WriteData.ByteData
     ): Boolean {
+        if (byteData.writeType == BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) {
+            val success = executeWritePacket(byteData)
+            if (success) delay(10)
+            return success
+        }
         return getTimeoutCancelableCoroutine(
             operation.address,
             operation.characterUuid.uppercase()

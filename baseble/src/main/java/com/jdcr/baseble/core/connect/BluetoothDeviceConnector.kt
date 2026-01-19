@@ -44,12 +44,7 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
                 newState: Int
             ): Boolean {
                 if (newState == BluetoothProfile.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS) {
-                    disconnect(address)
-                    val fromState = core.getDeviceStatus(address)
-                    core.changeDeviceState(
-                        address,
-                        BleDeviceState.Disconnected(gatt.device, fromState, status)
-                    )
+                    exceptionDisconnect(gatt.device, status)
                     retryConnect(address)
                     return true
                 }
@@ -82,10 +77,8 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
 
                     BluetoothProfile.STATE_CONNECTED -> {
                         core.changeDeviceState(address, BleDeviceState.Connected(device))
-                        gatt?.discoverServices()
-                        address?.let {
-                            retryTimes[it] = 0
-                        }
+                        gatt.discoverServices()
+                        clearRetryTimes(address)
                     }
 
                     BluetoothProfile.STATE_DISCONNECTING -> {
@@ -155,7 +148,7 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
                 gatt: BluetoothGatt?,
                 characteristic: BluetoothGattCharacteristic?
             ) {
-                super.onCharacteristicChanged(gatt, characteristic)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
 //                BleLog.i("通知: ${characteristic?.uuid}")
                 val uuid = characteristic?.uuid
                 val value = characteristic?.value
@@ -207,7 +200,7 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
                 characteristic: BluetoothGattCharacteristic?,
                 status: Int
             ) {
-                super.onCharacteristicRead(gatt, characteristic, status)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
                 BleLog.i("数据读取: ${characteristic?.uuid}")
                 val success = status == BluetoothGatt.GATT_SUCCESS
                 val characterUuid = characteristic?.uuid?.toString() ?: ""
@@ -246,18 +239,12 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
                 gatt?.device ?: return
                 val device = gatt.device
                 val address = gatt.device.address
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    core.setCurrentMtu(mtu)
-                    BleLog.i("实际数据包可用大小:${core.maxPacketSize},$mtu")
-                    core.changeDeviceState(address, BleDeviceState.Ready(device, gatt.services))
-                } else {
-                    core.closeGatt(address)
-                    val state = core.getDeviceStatus(address)
-                    core.changeDeviceState(
-                        address,
-                        BleDeviceState.Disconnected(device, state, status)
-                    )
+                core.setCurrentMtu(mtu)
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    BleLog.w("修改mtu失败:$status")
                 }
+                BleLog.i("实际数据包可用大小:${core.maxPacketSize},$mtu")
+                core.changeDeviceState(address, BleDeviceState.Ready(device, gatt.services))
             }
 
         }
@@ -317,24 +304,24 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
 
     @SuppressLint("MissingPermission")
     override fun disconnect(address: String?) {
-        BleLog.d("触发手动断开连接")
+        BleLog.d("触发手动断开连接:$address")
         core.closeGatt(address)
+        core.getFinalAddress(address)?.let { clearRetryTimes(it) }
     }
 
     private fun exceptionDisconnect(device: BluetoothDevice, status: Int) {
         val address = device.address
         val state = core.getDeviceStatus(address)
         BleLog.d("服务异常,触发执行断开连接")
-        if (core.closeGatt(address)) {
-            BleLog.d("执行断连成功" + state.desc)
-            core.changeDeviceState(address, BleDeviceState.Disconnected(device, state, status))
-        }
+        core.closeGatt(address)
+        BleLog.d("已执行断连" + state.desc)
+        core.changeDeviceState(address, BleDeviceState.Disconnected(device, state, status))
     }
 
     private fun addRetryTimes(address: String) {
         val times = retryTimes[address]
         if (times == null) {
-            retryTimes[address] = 0
+            clearRetryTimes(address)
         }
         retryTimes[address] = (retryTimes[address] ?: 0) + 1
     }
@@ -342,17 +329,23 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
     private fun retryConnect(address: String) {
         core.getConnectWithLock {
             val reconnectConfig = core.getConfig().reconnect
+            if (!reconnectConfig.enableReconnect) return@getConnectWithLock
             var times = retryTimes[address] ?: 0
-            if (reconnectConfig.enableReconnect && times < reconnectConfig.retryTimes) {
+            if (times < reconnectConfig.retryTimes) {
+                addRetryTimes(address)
                 delay(reconnectConfig.delayMill)
                 val deviceState = core.getDeviceStatus(address)
                 if (deviceState is BleDeviceState.Disconnected) {
                     connect(deviceState.device)
                     BleLog.i("尝试重连:$retryTimes")
-                    addRetryTimes(address)
                 }
             }
         }
+    }
+
+    private fun clearRetryTimes(address: String) {
+        BleLog.i("清除重连记录:$address")
+        retryTimes[address] = 0
     }
 
     fun release() {

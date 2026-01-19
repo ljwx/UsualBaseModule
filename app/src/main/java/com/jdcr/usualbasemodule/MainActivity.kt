@@ -1,5 +1,6 @@
 package com.jdcr.usualbasemodule
 
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.widget.TextView
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,14 +49,12 @@ import androidx.lifecycle.lifecycleScope
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.jdcr.basebase.loading.BaseCommonLoadingWindow
-import com.jdcr.baseble.BluetoothDeviceManager
-import com.jdcr.baseble.core.scan.BluetoothDeviceScanner
-import com.jdcr.baseble.core.scan.BluetoothDeviceScanner.ScanDeviceResult
+import com.jdcr.baseble.core.state.BleAdapterState
 import com.jdcr.baseble.test.BluetoothDeviceTest
-import com.jdcr.baseble.util.BleLog
+import com.jdcr.baseble.util.BluetoothDeviceUtils
+import com.jdcr.baseble.util.printTag
 import com.jdcr.baseeventbus.FlowEventBus
 import com.jdcr.basemultiplestate.BaseModuleMultipleState
-import com.jdcr.network.ktor.KtorClientManager
 import com.jdcr.selftestcompose.FirstComposeActivity
 import com.jdcr.usualbasemodule.ui.theme.UsualBaseModuleTheme
 import kotlinx.coroutines.delay
@@ -69,9 +70,9 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             UsualBaseModuleTheme {
-                val deviceList = remember { mutableStateListOf<ScanDeviceResult>() }
+                val deviceList = remember { mutableStateListOf<BluetoothDevice>() }
 
-                var currentDevice = remember { mutableStateOf<ScanDeviceResult?>(null) }
+                val currentDevice = remember { mutableStateOf<BluetoothDevice?>(null) }
 
                 // 设置扫描结果监听器
                 LaunchedEffect(Unit) {
@@ -88,28 +89,29 @@ class MainActivity : AppCompatActivity() {
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column {
-                        Row {
+                        Column {
                             Greeting(
                                 name = "Android",
                                 modifier = Modifier.padding(innerPadding)
                             )
-                            Button(
-                                onClick = {
-                                    startActivity(
-                                        Intent(
-                                            this@MainActivity,
-                                            FirstComposeActivity::class.java
-                                        )
-                                    )
-                                },
-                                modifier = Modifier.padding(innerPadding),
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("显示对话框")
-                            }
+//                            Button(
+//                                onClick = {
+//                                    startActivity(
+//                                        Intent(
+//                                            this@MainActivity,
+//                                            FirstComposeActivity::class.java
+//                                        )
+//                                    )
+//                                },
+//                                modifier = Modifier.padding(innerPadding),
+//                                contentPadding = PaddingValues(0.dp)
+//                            ) {
+//                                Text("显示对话框")
+//                            }
                             Text(
-                                text = currentDevice.value?.displayName() ?: "",
-                                modifier = Modifier.padding(innerPadding)
+                                text = currentDevice.value?.printTag() ?: "",
+                                modifier = Modifier.padding(innerPadding),
+                                fontSize = 13.sp,
                             )
                         }
                         Row {
@@ -118,14 +120,21 @@ class MainActivity : AppCompatActivity() {
                                 contentPadding = PaddingValues(0.dp),
                                 onClick = {
                                     lifecycleScope.launch {
-                                        test.startScan(arrayOf())?.collect { devices ->
-                                            // 过滤掉名称为空的设备，并更新列表和映射
-                                            val filteredDevices = devices.filter { it.name != null }
-                                            deviceList.clear()
+                                        test.startScan(arrayOf()).onSuccess {
+                                            it.collect { state ->
+                                                // 过滤掉名称为空的设备，并更新列表和映射
+                                                if (state is BleAdapterState.Scanning) {
+                                                    val filteredDevices =
+                                                        state.results.filter { it.device.name != null }
+                                                    deviceList.clear()
 
-                                            filteredDevices.forEach { device ->
-                                                deviceList.add(device)
+                                                    filteredDevices.forEach { device ->
+                                                        deviceList.add(device.device)
+                                                    }
+                                                }
                                             }
+                                        }.onFailure {
+                                            BluetoothDeviceUtils.requestScanPermissions(this@MainActivity)
                                         }
                                     }
                                 }) {
@@ -145,7 +154,7 @@ class MainActivity : AppCompatActivity() {
                                 onClick = {
                                     test.stopScan()
                                     currentDevice.value?.let {
-                                        test.connect(it.address)
+                                        test.connect(this@MainActivity, it.address)
                                     }
                                 }) {
                                 Text("连接")
@@ -183,13 +192,15 @@ class MainActivity : AppCompatActivity() {
                                 .padding(horizontal = 8.dp)
                         ) {
                             items(deviceList) { device ->
-                                Row {
+                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                                     Text(
-                                        text = device.displayName(),
+                                        maxLines = 1,
+                                        text = device.printTag(),
                                         fontSize = 13.sp,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp)
+                                            .background(Color.Cyan)
                                             .clickable {
                                                 currentDevice.value = device
                                             }

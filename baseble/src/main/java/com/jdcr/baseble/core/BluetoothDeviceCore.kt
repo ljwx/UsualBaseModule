@@ -214,7 +214,7 @@ class BluetoothDeviceCore(context: Context) {
         }
     }
 
-    private fun getFinalAddress(address: String?): String? {
+    fun getFinalAddress(address: String?): String? {
         return address ?: if (isSingleMode()) singleModeAddress else address
     }
 
