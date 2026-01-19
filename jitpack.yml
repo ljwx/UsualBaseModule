@@ -2,3 +2,6 @@ jdk:
   - openjdk11
 before_install:
   - chmod +x gradlew
+install:
+  # 关键：只安装 baseble 模块，跳过 app 和 selftestcompose
+  - ./gradlew :baseble:publishReleasePublicationToMavenLocal

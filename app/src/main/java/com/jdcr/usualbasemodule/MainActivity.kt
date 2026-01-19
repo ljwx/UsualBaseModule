@@ -55,7 +55,6 @@ import com.jdcr.baseble.util.BluetoothDeviceUtils
 import com.jdcr.baseble.util.printTag
 import com.jdcr.baseeventbus.FlowEventBus
 import com.jdcr.basemultiplestate.BaseModuleMultipleState
-import com.jdcr.selftestcompose.FirstComposeActivity
 import com.jdcr.usualbasemodule.ui.theme.UsualBaseModuleTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

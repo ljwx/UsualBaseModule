@@ -1,9 +1,6 @@
 package com.jdcr.network.ktor
 
 import com.jdcr.network.ktor.cache.CacheManager
-import com.jdcr.network.ktor.cache.ResponseCachePlugin
-import com.jdcr.network.ktor.cache.CacheFileManager
-import android.content.Context
 import com.jdcr.network.ktor.interceptor.header.CommonHeadersPlugin
 import com.jdcr.network.ktor.interceptor.header.DynamicHeaderProvider
 import com.jdcr.network.ktor.interceptor.header.DynamicHeadersPlugin
@@ -88,11 +85,7 @@ object KtorClientManager {
 //                header("token", "")
 //            }
 
-            // 安装缓存插件
-            install(ResponseCachePlugin) {
-                // 可以在这里配置默认缓存策略
-                // defaultCachePolicy = CachePolicy.CacheFirst(5.minutes)
-            }
+//            install(CachePlugin(cacheManager))
 
             install(CommonResponsePlugin) {
                 onClientError = {
@@ -114,19 +107,12 @@ object KtorClientManager {
     }
 
     fun init(
-        context: Context? = null,
         tokenRefreshProvider: TokenRefreshProvider? = null,
         commonHeaders: (() -> Map<String, String>)? = null,
         commonResponseProvider: CommonResponseProvider? = null,
     ) {
-        // 初始化缓存目录
-        context?.let { 
-            CacheFileManager.init(it)
-        }
-        
         this.tokenRefreshProvider = tokenRefreshProvider
         this.commonHeaders = commonHeaders
-        this.commonResponseProvider = commonResponseProvider
     }
 
     fun setCustomClient(client: HttpClient) {

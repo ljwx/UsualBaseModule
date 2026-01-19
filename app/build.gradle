@@ -73,9 +73,9 @@ dependencies {
     implementation project(path: ":basedialog")
     implementation project(path: ":basemultiplestate")
     implementation project(path: ":baseeventbus")
-    implementation project(path: ":basenetwork")
+//    implementation project(path: ":basenetwork")
     implementation project(path: ":basekmplog")
-    implementation project(path: ":selftestcompose")
+//    implementation project(path: ":selftestcompose")
     implementation project(path: ":baseble")
 
 }
