@@ -26,7 +26,7 @@ import kotlinx.coroutines.sync.withLock
 
 open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleScanner {
 
-    private var filterDeviceName: Array<String>? = null
+    private var filterDeviceName: Array<String?>? = null
     private val filterMapLazy: Lazy<HashMap<String, ScanFilter>> = lazy { HashMap() }
     private val filterMap by filterMapLazy
     private var settings: ScanSettings? = null
@@ -38,10 +38,11 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
     private val listMutex = Mutex()
     private val scanResultList by lazy { mutableListOf<ScanResult>() }
     private var scanResultChannelJob: Job? = null
+
     @Volatile
     private var scanResultChannel = Channel<ScanResult>(Channel.BUFFERED)
     private val scanResultFlow = MutableSharedFlow<BleAdapterState>(
-        replay = 0,
+        replay = 1,
         extraBufferCapacity = 30,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
@@ -86,7 +87,7 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
         }
     }
 
-    private suspend fun clearExpiredDevice(): List<ScanResult> {
+    private suspend fun clearExpiredDevice(singleMode: Boolean): List<ScanResult> {
         return listMutex.withLock {
             val currentBootMillis = SystemClock.elapsedRealtime()
             val iterator = scanResultList.iterator()
@@ -101,8 +102,18 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
                     iterator.remove()
                 }
             }
-            scanResultList.sortByDescending { it.rssi }
-            ArrayList(scanResultList)
+            if (scanConfig.rssiSort) {
+                scanResultList.sortByDescending { it.rssi }
+            }
+            if (singleMode) {
+                if (scanResultList.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(scanResultList.first())
+                }
+            } else {
+                ArrayList(scanResultList)
+            }
         }
     }
 
@@ -128,7 +139,7 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
 
     @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN)
     override fun startScan(
-        containName: Array<String>,
+        containName: Array<String?>?,
         timeoutMills: Long?
     ): Result<SharedFlow<BleAdapterState>> {
         filterDeviceName = containName
@@ -165,15 +176,21 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
     }
 
     private fun startScanResultSendJob() {
+        scanResultSendJob?.cancel()
         scanResultSendJob = core.getScope().launch {
             supervisorScope {
                 launch {
+                    val scanConfig = core.getConfig().scan
                     while (isActive) {
-                        delay(core.getConfig().scan.resultIntervalMills)
+                        delay(scanConfig.resultIntervalMills)
                         try {
-                            val listCopy = clearExpiredDevice()
-                            BleLog.i("发送扫描结果:" + listCopy.size)
-                            scanResultFlow.tryEmit(BleAdapterState.Scanning(listCopy))
+                            val listCopy = clearExpiredDevice(scanConfig.singleResultMode)
+                            BleLog.i("发送扫描结果,单个模式:" + scanConfig.singleResultMode + "," + listCopy.size)
+                            if (scanConfig.singleResultMode) {
+                                scanResultFlow.tryEmit(BleAdapterState.ScanningSingle(listCopy.firstOrNull()))
+                            } else {
+                                scanResultFlow.tryEmit(BleAdapterState.ScanningList(listCopy))
+                            }
                         } catch (e: Exception) {
                             BleLog.e("处理扫描结果时异常:$e")
                         }
@@ -189,7 +206,7 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
             if (isScanning) {
                 BleLog.d("扫描超时,停止扫描")
                 core.getScanner()?.stopScan(scanCallback)
-                scanFinish(true, BleAdapterState.Finish.REASON_TIMEOUT)
+                scanFinish(BleAdapterState.Finish(true, BleAdapterState.Finish.REASON_TIMEOUT))
             }
         }
     }
@@ -204,7 +221,7 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
             } catch (e: Exception) {
                 BleLog.e("停止扫描异常:$e")
             }
-            scanFinish(true, BleAdapterState.Finish.REASON_MANUAL)
+            scanFinish(BleAdapterState.Finish(true, BleAdapterState.Finish.REASON_MANUAL))
         }
     }
 
@@ -217,7 +234,8 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
                     scanResultChannel.trySend(result)
                 } else {
                     result.device.name?.let { deviceName ->
-                        val contain = filterName.any { deviceName.contains(it, true) }
+                        val contain =
+                            filterName.filterNotNull().any { deviceName.contains(it, true) }
                         if (contain) {
                             scanResultChannel.trySend(result)
                         }
@@ -227,12 +245,18 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
 
             override fun onScanFailed(errorCode: Int) {
                 super.onScanFailed(errorCode)
-                scanFinish(false, BleAdapterState.Finish.REASON_ON_FAIL)
+                scanFinish(
+                    BleAdapterState.Finish(
+                        false,
+                        BleAdapterState.Finish.REASON_ON_FAIL,
+                        errorCode
+                    )
+                )
             }
         }
     }
 
-    private fun scanFinish(success: Boolean, reason: Int) {
+    private fun scanFinish(state: BleAdapterState) {
         BleLog.i("扫描结束,清理资源")
         scanTimeoutJob?.cancel()
         scanTimeoutJob = null
@@ -244,7 +268,7 @@ open class BluetoothDeviceScanner(private val core: BluetoothDeviceCore) : BleSc
         scanResultChannelJob?.cancel()
         scanResultChannelJob = null
         core.getScope().launch { listMutex.withLock { scanResultList.clear() } }
-        scanResultFlow.tryEmit(BleAdapterState.Finish(success, reason))
+        scanResultFlow.tryEmit(state)
     }
 
     override fun release() {

@@ -21,14 +21,22 @@ sealed class BleAdapterState {
         override val desc = "没有扫描权限,ovVersion:$versionName"
     }
 
-    data class Scanning(
+    data class ScanningList(
         val results: List<ScanResult>,
         val timestamp: Long = System.currentTimeMillis()
     ) : BleAdapterState() {
-        override val desc = "扫描中"
+        override val desc = "扫描中,数据集"
     }
 
-    data class Finish(val success: Boolean, val reason: Int) : BleAdapterState() {
+    data class ScanningSingle(
+        val result: ScanResult?,
+        val timestamp: Long = System.currentTimeMillis()
+    ) : BleAdapterState() {
+        override val desc = "扫描中,单个数据"
+    }
+
+    data class Finish(val success: Boolean, val reason: Int, val errorCode: Int? = null) :
+        BleAdapterState() {
         companion object {
             const val REASON_MANUAL = 0
             const val REASON_TIMEOUT = 1

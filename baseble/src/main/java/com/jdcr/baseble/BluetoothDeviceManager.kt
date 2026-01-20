@@ -50,7 +50,7 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
     private val connector =
         BluetoothDeviceConnector(core).apply { setCommunicationHandler(dataHandler) }
 
-    fun startScan(containName: Array<String>, timeout: Long? = null) =
+    fun startScan(containName: Array<String?>?, timeout: Long? = null) =
         scanner.startScan(containName, timeout)
 
     fun startScan(timeout: Long?) = scanner.startScan(timeout)

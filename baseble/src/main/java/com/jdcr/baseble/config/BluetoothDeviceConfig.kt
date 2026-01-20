@@ -8,6 +8,8 @@ data class BleScanConfig(
     val filterNullName: Boolean = true,
     val expiredTimeMills: Int = 2000,
     val resultIntervalMills: Long = 200,
+    val rssiSort: Boolean = true,
+    val singleResultMode: Boolean = false
 )
 
 data class BleReconnectConfig(
