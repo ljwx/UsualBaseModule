@@ -6,7 +6,12 @@ import kotlinx.coroutines.flow.SharedFlow
 
 interface BleWriter {
 
-    fun writeData(data: WriteData)
+    fun writeData(
+        data: WriteData,
+        callback: ((result: BleOperationResult.Write) -> Unit)?
+    )
+
+    suspend fun writeData(data: WriteData): BleOperationResult.Write
 
     fun onWriteResult(result: BleOperationResult.Write)
 

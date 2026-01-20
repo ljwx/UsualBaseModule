@@ -26,7 +26,7 @@ class BluetoothDeviceCommunicationHandler(
         fun removeExceptionOperation(characterUuid: String) {
             core.pendingOperations[characterUuid]?.apply {
                 if (isActive) {
-                    resume(false, null)
+                    resume(Result.failure(Exception("执行异常")), null)
                 }
             }
             core.pendingOperations.remove(characterUuid)
@@ -34,20 +34,29 @@ class BluetoothDeviceCommunicationHandler(
 
         core.getScope().launch {
             for (op in core.operationChannel) {
+                var writeResult: BleOperationResult.Write? = null
+                var readResult: BleOperationResult.Read? = null
                 try {
                     BleLog.i("2执行队列:" + op.getDisplayTag())
                     withTimeout(core.getConfig().communicate.timeoutMills + 500) {
                         when (op) {
                             is BleCommunicateOperation.Write -> {
                                 val success = bleWrite.performWriteSuspend(op)
-                                BleOperationResult.Write(op.address, success, op.characterUuid, 0)
-                                    .apply {
-                                        bleWrite.emmitData(this)
-                                    }
+                                BleLog.i("写入的最终结果," + success + "," + op.characterUuid)
+                                writeResult = BleOperationResult.Write(
+                                    op.address,
+                                    success,
+                                    op.characterUuid,
+                                    0
+                                )
                             }
 
                             is BleCommunicateOperation.Read -> {
-                                bleRead.performReadSuspend(op)
+                                bleRead.performReadSuspend(op).onSuccess {
+                                    if (it is BleOperationResult.Read) {
+                                        readResult = it
+                                    }
+                                }
                             }
 
                             is BleCommunicateOperation.Notify -> {
@@ -57,9 +66,47 @@ class BluetoothDeviceCommunicationHandler(
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     BleLog.e("2.5执行队列任务时超时:${op.characterUuid}")
+                    if (op is BleCommunicateOperation.Write) {
+                        writeResult =
+                            BleOperationResult.Write(op.address, false, op.characterUuid, -2)
+                    }
+                    if (op is BleCommunicateOperation.Read) {
+                        readResult =
+                            BleOperationResult.Read(op.address, false, op.characterUuid, null, -2)
+                    }
                 } catch (e: Exception) {
                     BleLog.e("2.5执行队列任务时异常:${op.characterUuid},$e")
+                    if (op is BleCommunicateOperation.Write) {
+                        writeResult =
+                            BleOperationResult.Write(op.address, false, op.characterUuid, -1)
+                    }
+                    if (op is BleCommunicateOperation.Read) {
+                        readResult =
+                            BleOperationResult.Read(op.address, false, op.characterUuid, null, -1)
+                    }
                 } finally {
+                    if (op is BleCommunicateOperation.Write) {
+                        val finalResult = writeResult ?: BleOperationResult.Write(
+                            op.address,
+                            false,
+                            op.characterUuid,
+                            -3
+                        )
+                        op.deferred?.complete(finalResult)
+                        op.callback?.invoke(finalResult)
+                        bleWrite.emmitData(finalResult)
+                    }
+                    if (op is BleCommunicateOperation.Read) {
+                        val finalResult = readResult ?: BleOperationResult.Read(
+                            op.address,
+                            false,
+                            op.characterUuid,
+                            null,
+                            -3
+                        )
+                        op.deferred?.complete(finalResult)
+                        op.callback?.invoke(finalResult)
+                    }
                     removeExceptionOperation(op.characterUuid.uppercase())
                 }
             }

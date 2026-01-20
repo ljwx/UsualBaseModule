@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.SharedFlow
 interface BleScanner {
 
     fun startScan(
-        containName: Array<String>,
+        containName: Array<String?>?,
         timeoutMills: Long? = null
     ): Result<SharedFlow<BleAdapterState>>
 

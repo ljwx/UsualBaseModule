@@ -8,10 +8,13 @@ import androidx.annotation.IntDef
 import com.jdcr.baseble.core.BluetoothDeviceCore
 import com.jdcr.baseble.core.communication.BleCommunicationBase
 import com.jdcr.baseble.core.communication.BleCommunicationBase.BleOperationResult
+import com.jdcr.baseble.core.exception.PermissionDineException
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.withTimeout
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 
@@ -33,7 +36,7 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
         open val address: String?,
         open val serviceUuid: String,
         open val characterUuid: String,
-        @WriteType open val writeType: Int? = null
+        @WriteType open val writeType: Int? = null,
     ) {
 
         data class StringData(
@@ -41,7 +44,7 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
             override val serviceUuid: String,
             override val characterUuid: String,
             val data: String,
-            @WriteType override val writeType: Int? = null
+            @WriteType override val writeType: Int? = null,
         ) : WriteData(address, serviceUuid, characterUuid, writeType) {
             override fun getPacketArray(): ByteArray {
                 return data.toByteArray(StandardCharsets.UTF_8)
@@ -53,7 +56,7 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
             override val serviceUuid: String,
             override val characterUuid: String,
             val byteArray: ByteArray,
-            @WriteType override val writeType: Int? = null
+            @WriteType override val writeType: Int? = null,
         ) : WriteData(address, serviceUuid, characterUuid, writeType) {
             override fun getPacketArray(): ByteArray {
                 return byteArray
@@ -77,7 +80,7 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
     suspend fun performWriteSuspend(operation: BleCommunicateOperation.Write): Boolean {
         val packets = getSplitPacketArray(operation.writeData)
         packets.forEach {
-            if (!writeSinglePacket(operation, it)) {
+            if (!writeSinglePacket(operation, it).isSuccess) {
                 BleLog.w("写入失败,直接返回:" + it.address + "," + it.characterUuid)
                 return false
             }
@@ -88,21 +91,27 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
     private suspend fun writeSinglePacket(
         operation: BleCommunicateOperation.Write,
         byteData: WriteData.ByteData
-    ): Boolean {
+    ): Result<BleOperationResult> {
         if (byteData.writeType == BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) {
-            val success = executeWritePacket(byteData)
+            val success = executeWritePacket(byteData).isSuccess
             if (success) delay(10)
-            return success
+            return Result.success(
+                BleOperationResult.Write(
+                    operation.address,
+                    success,
+                    operation.characterUuid.uppercase(),
+                    0
+                )
+            )
         }
         return getTimeoutCancelableCoroutine(
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
             registerOneShotCallback(operation.writeData.characterUuid.uppercase(), continuation)
-            val success = executeWritePacket(byteData)
-            if (!success) {
+            executeWritePacket(byteData).onFailure {
                 unregisterOneShotCallback(operation.writeData.characterUuid.uppercase())
-                if (continuation.isActive) continuation.resume(false, null)
+                if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }
     }
@@ -112,16 +121,32 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
     }
 
     @SuppressLint("MissingPermission")
-    override fun writeData(data: WriteData) {
-        sendOperation(BleCommunicateOperation.Write(data))
+    override fun writeData(
+        data: WriteData,
+        callback: ((result: BleOperationResult.Write) -> Unit)?
+    ) {
+        sendOperation(BleCommunicateOperation.Write(data, callback = callback))
     }
 
-    private fun executeWritePacket(data: WriteData.ByteData): Boolean {
-        val gatt = core.getGatt(data.address)
-        if (gatt == null) {
-            BleLog.e("GATT为空，无法写入数据:${data.characterUuid}")
-            return false
+    override suspend fun writeData(data: WriteData): BleOperationResult.Write {
+        val deferred = CompletableDeferred<BleOperationResult.Write>()
+        sendOperation(BleCommunicateOperation.Write(data, deferred = deferred))
+        return try {
+            withTimeout(core.getConfig().communicate.timeoutMills + 3000) {
+                deferred.await()
+            }
+        } catch (e: Exception) {
+            deferred.cancel()
+            BleOperationResult.Write(data.address, false, data.characterUuid, -1)
         }
+    }
+
+    private fun executeWritePacket(data: WriteData.ByteData) : Result<Boolean> {
+        val gatt = core.getGatt(data.address)
+            ?: "GATT为空，无法写入数据:${data.characterUuid}".let {
+                BleLog.e(it)
+                return Result.failure(IllegalStateException(it))
+            }
         val service = gatt.getService(UUID.fromString(data.serviceUuid))
         val character = service?.getCharacteristic(UUID.fromString(data.characterUuid))
         val packet = data.getPacketArray()
@@ -154,14 +179,19 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
                     BleLog.i("4写入结果:$success")
                     success
                 }
-                return success
+                return if (success) Result.success(true) else Result.failure(Exception("操作失败"))
             } else {
-                BleLog.e("写入时没有权限")
+                "写入时没有权限".let {
+                    BleLog.e(it)
+                    return Result.failure(PermissionDineException(it))
+                }
             }
         } else {
-            BleLog.e("写入时未找到特征值:${data.characterUuid}")
+            "写入时未找到特征值:${data.characterUuid}".let {
+                BleLog.d(it)
+                return Result.failure(IllegalStateException(it))
+            }
         }
-        return false
     }
 
 

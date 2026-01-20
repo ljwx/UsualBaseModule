@@ -23,6 +23,7 @@ import com.jdcr.baseble.constant.BLE_STATE_SCANNING_START
 import com.jdcr.baseble.constant.BLE_STATE_SERVER_READY
 import com.jdcr.baseble.constant.BleServerState
 import com.jdcr.baseble.core.communication.BleCommunicationBase.BleCommunicateOperation
+import com.jdcr.baseble.core.communication.BleCommunicationBase.BleOperationResult
 import com.jdcr.baseble.core.state.BleDeviceState
 import com.jdcr.baseble.util.BleLog
 import kotlinx.coroutines.CancellableContinuation
@@ -121,7 +122,7 @@ class BluetoothDeviceCore(context: Context) {
     private var singleModeAddress: String? = null
 
     val operationChannel = Channel<BleCommunicateOperation>(Channel.UNLIMITED)
-    val pendingOperations = ConcurrentHashMap<String, CancellableContinuation<Boolean>>()
+    val pendingOperations = ConcurrentHashMap<String, CancellableContinuation<Result<BleOperationResult>>>()
 
     init {
         initManager(applicationContext)

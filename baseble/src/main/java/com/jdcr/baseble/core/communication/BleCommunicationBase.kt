@@ -6,6 +6,7 @@ import com.jdcr.baseble.core.communication.read.BluetoothDeviceRead
 import com.jdcr.baseble.core.communication.write.BluetoothDeviceWrite
 import com.jdcr.baseble.util.BleLog
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,11 +20,15 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
 
     sealed class BleCommunicateOperation(val address: String?, val characterUuid: String) {
         data class Write(
-            val writeData: BluetoothDeviceWrite.WriteData
+            val writeData: BluetoothDeviceWrite.WriteData,
+            val deferred: CompletableDeferred<BleOperationResult.Write>? = null,
+            val callback: ((result: BleOperationResult.Write) -> Unit)? = null
         ) : BleCommunicateOperation(writeData.address, writeData.characterUuid)
 
         data class Read(
-            val readData: BluetoothDeviceRead.RequestReadData
+            val readData: BluetoothDeviceRead.RequestReadData,
+            val deferred: CompletableDeferred<BleOperationResult.Read>? = null,
+            val callback: ((result: BleOperationResult.Read) -> Unit)? = null
         ) : BleCommunicateOperation(readData.address, readData.characterUuid)
 
         data class Notify(
@@ -53,7 +58,8 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
             override val address: String?,
             override val success: Boolean,
             override val characterUuid: String,
-            val value: ByteArray?
+            val value: ByteArray?,
+            val status: Int? = null
         ) : BleOperationResult(address, characterUuid, success)
 
         data class Write(
@@ -80,8 +86,8 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
     suspend fun getTimeoutCancelableCoroutine(
         address: String?,
         characterUuid: String,
-        block: (CancellableContinuation<Boolean>) -> Unit
-    ): Boolean {
+        block: (CancellableContinuation<Result<BleOperationResult>>) -> Unit
+    ): Result<BleOperationResult> {
         return try {
             withTimeout(core.getConfig().communicate.timeoutMills) {
                 suspendCancellableCoroutine(block)
@@ -89,11 +95,11 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         } catch (e: TimeoutCancellationException) {
             BleLog.e("操作超时:$address,$characterUuid")
             unregisterOneShotCallback(characterUuid.uppercase())
-            false
+            Result.failure(e)
         } catch (e: Exception) {
             BleLog.e("操作异常::$address,$characterUuid,$e")
             unregisterOneShotCallback(characterUuid.uppercase())
-            false
+            Result.failure(e)
         }
     }
 
@@ -102,21 +108,9 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         core.operationChannel.trySend(operation)
     }
 
-//    protected open suspend fun performEnableNotifySuspend(operation: BleCommunicateOperation.Notify): Boolean {
-//        return true
-//    }
-//
-//    protected open suspend fun performWriteSuspend(operation: BleCommunicateOperation.Write): Boolean {
-//        return true
-//    }
-//
-//    protected open suspend fun performReadSuspend(operation: BleCommunicateOperation.Read): Boolean {
-//        return true
-//    }
-
     protected fun registerOneShotCallback(
         characterUuid: String,
-        continuation: CancellableContinuation<Boolean>
+        continuation: CancellableContinuation<Result<BleOperationResult>>
     ) {
         val old = core.pendingOperations.remove(characterUuid.uppercase())
         if (old != null) {
@@ -139,13 +133,13 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         val continuation = core.pendingOperations.remove(result.characterUuid.uppercase())
         if (continuation != null && continuation.isActive) {
             BleLog.d("5收到等待结果:" + result.getDisplayTag())
-            continuation.resume(result.success, null)
+            continuation.resume(Result.success(result), null)
         } else {
             BleLog.d("5收到结果回调，但没有挂起的任务在等待: ${result.characterUuid}")
         }
     }
 
-    fun emmitData(result:Data) {
+    fun emmitData(result: Data) {
         _communicateFlow.tryEmit(result)
     }
 

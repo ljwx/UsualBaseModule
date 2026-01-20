@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.os.Build
 import com.jdcr.baseble.core.BluetoothDeviceCore
 import com.jdcr.baseble.core.communication.BleCommunicationBase
+import com.jdcr.baseble.core.exception.PermissionDineException
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,16 +28,15 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         val value: ByteArray?
     )
 
-    suspend fun performEnableNotifySuspend(operation: BleCommunicateOperation.Notify): Boolean {
+    suspend fun performEnableNotifySuspend(operation: BleCommunicateOperation.Notify): Result<BleOperationResult> {
         return getTimeoutCancelableCoroutine(
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
             registerOneShotCallback(operation.notifyData.characterUuid.uppercase(), continuation)
-            val success = executeEnableNotification(operation.notifyData)
-            if (!success) {
+            executeEnableNotification(operation.notifyData).onFailure {
                 unregisterOneShotCallback(operation.notifyData.characterUuid.uppercase())
-                if (continuation.isActive) continuation.resume(false, null)
+                if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }
     }
@@ -55,12 +55,12 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         onOperationResult(result)
     }
 
-    private fun executeEnableNotification(data: EnableNotificationData): Boolean {
+    private fun executeEnableNotification(data: EnableNotificationData): Result<Boolean> {
         val gatt = core.getGatt(data.address)
-        if (gatt == null) {
-            BleLog.e("GATT为空，无法开启通知:${data.characterUuid}")
-            return false
-        }
+            ?: "GATT为空，无法开启通知:${data.characterUuid}".let {
+                BleLog.e(it)
+                return Result.failure(IllegalStateException(it))
+            }
         val service = gatt.getService(UUID.fromString(data.serviceUuid))
         val character = service?.getCharacteristic(UUID.fromString(data.characterUuid))
         if (character != null) {
@@ -80,15 +80,26 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
                     }
                     if (!writeResult) {
                         BleLog.e("写入指令失败:${data.characterUuid}")
-                        return false
+                        return Result.failure(Exception("操作失败"))
                     }
-                    return true
+                    return Result.success(true)
+                }
+                "订阅通知特征值为空:${data.characterUuid}".let {
+                    BleLog.d(it)
+                    return Result.failure(IllegalStateException(it))
+                }
+            } else {
+                "订阅通知时没有权限".let {
+                    BleLog.e(it)
+                    return Result.failure(PermissionDineException(it))
                 }
             }
         } else {
-            BleLog.e("开启监听未找到特征值:${data.characterUuid}")
+            "开启监听未找到特征值:${data.characterUuid}".let {
+                BleLog.d(it)
+                return Result.failure(IllegalStateException(it))
+            }
         }
-        return false
     }
 
     override fun onNotification(

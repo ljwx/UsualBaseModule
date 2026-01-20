@@ -60,7 +60,7 @@ afterEvaluate {
                 // 但为了本地测试，你可以保留这些：
                 groupId = "com.github.jdcr"
                 artifactId = "baseble"
-                version = "1.0.1-SNAPSHOT"
+                version = "1.0.5-SNAPSHOT"
             }
         }
     }

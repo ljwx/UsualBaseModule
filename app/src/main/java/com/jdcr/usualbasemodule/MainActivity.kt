@@ -1,9 +1,6 @@
 package com.jdcr.usualbasemodule
 
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanResult
-import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import androidx.activity.compose.setContent
@@ -30,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -38,7 +34,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
@@ -122,7 +117,7 @@ class MainActivity : AppCompatActivity() {
                                         test.startScan(arrayOf()).onSuccess {
                                             it.collect { state ->
                                                 // 过滤掉名称为空的设备，并更新列表和映射
-                                                if (state is BleAdapterState.Scanning) {
+                                                if (state is BleAdapterState.ScanningList) {
                                                     val filteredDevices =
                                                         state.results.filter { it.device.name != null }
                                                     deviceList.clear()

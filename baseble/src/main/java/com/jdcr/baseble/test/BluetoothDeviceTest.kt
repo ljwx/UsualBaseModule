@@ -123,7 +123,7 @@ object BluetoothDeviceTest {
         }
     }
 
-    fun startScan(containName: Array<String>) = manager.startScan(containName)
+    fun startScan(containName: Array<String?>?) = manager.startScan(containName)
 
     fun stopScan() = manager.stopScan()
 
