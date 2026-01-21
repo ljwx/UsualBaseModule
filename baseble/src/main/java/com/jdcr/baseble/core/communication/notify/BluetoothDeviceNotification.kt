@@ -7,8 +7,11 @@ import com.jdcr.baseble.core.communication.BleCommunicationBase
 import com.jdcr.baseble.core.exception.PermissionDineException
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
     BleCommunicationBase<BluetoothDeviceNotification.NotificationData>(core),
@@ -18,15 +21,19 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         val address: String?,
         val serviceUuid: String,
         val characterUuid: String,
-        val notificationUuid: String,
+        val notificationUuid: String = "00002902-0000-1000-8000-00805f9b34fb",
         val isIndicationValue: Boolean = false
     )
 
     data class NotificationData(
         val address: String?,
+        val serviceUuid: String?,
         val characterUUID: String,
         val value: ByteArray?
     )
+
+    private val throttleIntervalMap = ConcurrentHashMap<String, Long>()
+    private val lastEmitTimeMap = ConcurrentHashMap<String, Long>()
 
     suspend fun performEnableNotifySuspend(operation: BleCommunicateOperation.Notify): Result<BleOperationResult> {
         return getTimeoutCancelableCoroutine(
@@ -46,9 +53,28 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
     }
 
     override fun enableNotification(
-        data: EnableNotificationData
+        data: EnableNotificationData,
+        callback: ((result: BleOperationResult.EnableNotification) -> Unit)?
     ) {
-        sendOperation(BleCommunicateOperation.Notify(data))
+        sendOperation(BleCommunicateOperation.Notify(data, callback = callback))
+    }
+
+    override suspend fun enableNotification(data: EnableNotificationData): BleOperationResult.EnableNotification {
+        val deferred = CompletableDeferred<BleOperationResult.EnableNotification>()
+        sendOperation(BleCommunicateOperation.Notify(data, deferred = deferred))
+        return try {
+            withTimeout(core.getConfig().communicate.timeoutMills + 3000) {
+                deferred.await()
+            }
+        } catch (e: Exception) {
+            deferred.cancel()
+            BleOperationResult.EnableNotification(
+                data.address,
+                data.characterUuid,
+                data.notificationUuid,
+                false
+            )
+        }
     }
 
     override fun onEnableNotificationResult(result: BleOperationResult.EnableNotification) {

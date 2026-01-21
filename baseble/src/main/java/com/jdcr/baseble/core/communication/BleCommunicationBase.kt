@@ -32,7 +32,9 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         ) : BleCommunicateOperation(readData.address, readData.characterUuid)
 
         data class Notify(
-            val notifyData: BluetoothDeviceNotification.EnableNotificationData
+            val notifyData: BluetoothDeviceNotification.EnableNotificationData,
+            val deferred: CompletableDeferred<BleOperationResult.EnableNotification>? = null,
+            val callback: ((result: BleOperationResult.EnableNotification) -> Unit)? = null
         ) : BleCommunicateOperation(notifyData.address, notifyData.characterUuid)
 
         fun getDisplayTag(): String {
@@ -50,7 +52,7 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         data class EnableNotification(
             override val address: String?,
             override val characterUuid: String,
-            val notificationUuid: String,
+            val notificationUuid: String?,
             override val success: Boolean
         ) : BleOperationResult(address, characterUuid, success)
 

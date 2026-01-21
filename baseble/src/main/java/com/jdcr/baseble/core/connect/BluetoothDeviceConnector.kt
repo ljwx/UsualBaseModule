@@ -150,13 +150,15 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
             ) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
 //                BleLog.i("通知: ${characteristic?.uuid}")
-                val uuid = characteristic?.uuid
+                val serviceUuid = characteristic?.service?.uuid?.toString()
+                val uuid = characteristic?.uuid?.toString()
                 val value = characteristic?.value
                 if (uuid != null) {
                     communicationHandler?.notify?.onNotification(
                         BluetoothDeviceNotification.NotificationData(
                             gatt?.device?.address,
-                            uuid.toString(),
+                            serviceUuid,
+                            uuid,
                             value
                         )
                     )
@@ -172,6 +174,7 @@ open class BluetoothDeviceConnector(private val core: BluetoothDeviceCore) : Ble
                 communicationHandler?.notify?.onNotification(
                     BluetoothDeviceNotification.NotificationData(
                         gatt.device.address,
+                        characteristic.service.uuid.toString(),
                         characteristic.uuid.toString(),
                         value
                     )
