@@ -36,6 +36,7 @@ class BluetoothDeviceCommunicationHandler(
             for (op in core.operationChannel) {
                 var writeResult: BleOperationResult.Write? = null
                 var readResult: BleOperationResult.Read? = null
+                var enableNotifyResult: BleOperationResult.EnableNotification? = null
                 try {
                     BleLog.i("2执行队列:" + op.getDisplayTag())
                     withTimeout(core.getConfig().communicate.timeoutMills + 500) {
@@ -60,7 +61,11 @@ class BluetoothDeviceCommunicationHandler(
                             }
 
                             is BleCommunicateOperation.Notify -> {
-                                bleNotify.performEnableNotifySuspend(op)
+                                bleNotify.performEnableNotifySuspend(op).onSuccess {
+                                    if (it is BleOperationResult.EnableNotification) {
+                                        enableNotifyResult = it
+                                    }
+                                }
                             }
                         }
                     }
@@ -74,6 +79,15 @@ class BluetoothDeviceCommunicationHandler(
                         readResult =
                             BleOperationResult.Read(op.address, false, op.characterUuid, null, -2)
                     }
+                    if (op is BleCommunicateOperation.Notify) {
+                        enableNotifyResult =
+                            BleOperationResult.EnableNotification(
+                                op.address,
+                                op.characterUuid,
+                                op.notifyData.notificationUuid,
+                                false
+                            )
+                    }
                 } catch (e: Exception) {
                     BleLog.e("2.5执行队列任务时异常:${op.characterUuid},$e")
                     if (op is BleCommunicateOperation.Write) {
@@ -83,6 +97,15 @@ class BluetoothDeviceCommunicationHandler(
                     if (op is BleCommunicateOperation.Read) {
                         readResult =
                             BleOperationResult.Read(op.address, false, op.characterUuid, null, -1)
+                    }
+                    if (op is BleCommunicateOperation.Notify) {
+                        enableNotifyResult =
+                            BleOperationResult.EnableNotification(
+                                op.address,
+                                op.characterUuid,
+                                op.notifyData.notificationUuid,
+                                false
+                            )
                     }
                 } finally {
                     if (op is BleCommunicateOperation.Write) {
@@ -104,6 +127,17 @@ class BluetoothDeviceCommunicationHandler(
                             null,
                             -3
                         )
+                        op.deferred?.complete(finalResult)
+                        op.callback?.invoke(finalResult)
+                    }
+                    if (op is BleCommunicateOperation.Notify) {
+                        val finalResult =
+                            enableNotifyResult ?: BleOperationResult.EnableNotification(
+                                op.address,
+                                op.characterUuid,
+                                op.notifyData.notificationUuid,
+                                false
+                            )
                         op.deferred?.complete(finalResult)
                         op.callback?.invoke(finalResult)
                     }

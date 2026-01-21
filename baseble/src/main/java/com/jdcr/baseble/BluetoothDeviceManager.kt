@@ -4,12 +4,14 @@ import android.bluetooth.BluetoothDevice
 import android.content.Context
 import com.jdcr.baseble.config.BluetoothDeviceConfig
 import com.jdcr.baseble.core.BluetoothDeviceCore
+import com.jdcr.baseble.core.communication.BleCommunicationBase.BleOperationResult
 import com.jdcr.baseble.core.communication.BluetoothDeviceCommunicationHandler
 import com.jdcr.baseble.core.communication.notify.BluetoothDeviceNotification
 import com.jdcr.baseble.core.communication.notify.BluetoothDeviceNotification.NotificationData
 import com.jdcr.baseble.core.communication.read.BluetoothDeviceRead
 import com.jdcr.baseble.core.communication.read.BluetoothDeviceRead.RequestReadData
 import com.jdcr.baseble.core.communication.write.BluetoothDeviceWrite
+import com.jdcr.baseble.core.communication.write.BluetoothDeviceWrite.WriteData
 import com.jdcr.baseble.core.connect.BluetoothDeviceConnector
 import com.jdcr.baseble.core.scan.BluetoothDeviceScanner
 import kotlinx.coroutines.flow.SharedFlow
@@ -61,6 +63,11 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
     fun disconnect(address: String?) = connector.disconnect(address)
 
     fun enableNotification(
+        notificationData: BluetoothDeviceNotification.EnableNotificationData,
+        callback: ((result: BleOperationResult.EnableNotification) -> Unit)?
+    ) = dataHandler.notify.enableNotification(notificationData, callback)
+
+    suspend fun enableNotification(
         notificationData: BluetoothDeviceNotification.EnableNotificationData
     ) = dataHandler.notify.enableNotification(notificationData)
 
@@ -70,11 +77,25 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
     fun getReadResultFlow() =
         dataHandler.read.getReadResultFlow()
 
-    fun requestReadData(data: RequestReadData) =
-        dataHandler.read.requestReadData(data, null)
+    fun requestReadData(
+        data: RequestReadData,
+        callback: ((result: BleOperationResult.Read) -> Unit)?
+    ) = dataHandler.read.requestReadData(data, callback)
 
-    fun writeData(data: BluetoothDeviceWrite.WriteData) =
-        dataHandler.write.writeData(data, null)
+    suspend fun requestReadData(data: RequestReadData) = dataHandler.read.requestReadData(data)
+
+    fun writeData(
+        data: BluetoothDeviceWrite.WriteData,
+        callback: ((result: BleOperationResult.Write) -> Unit)?
+    ) = dataHandler.write.writeData(data, callback)
+
+    suspend fun writeData(data: WriteData) = dataHandler.write.writeData(data)
+
+    fun release() {
+        core.release()
+        scanner.release()
+        connector.release()
+    }
 
 }
 

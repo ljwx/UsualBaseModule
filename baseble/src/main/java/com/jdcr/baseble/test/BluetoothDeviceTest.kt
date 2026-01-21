@@ -160,7 +160,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.BUTTON_A_STATE_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启按钮a通知结果:" + it.characterUuid + "," + it.success)
+        }
         manager.enableNotification(
             BluetoothDeviceNotification.EnableNotificationData(
                 address,
@@ -168,7 +170,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.BUTTON_B_STATE_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启按钮b通知结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
     fun registerIO(address: String?) {
@@ -180,7 +184,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.IO_PIN_DATA_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启IO引脚通知结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
     fun registerTemperature(address: String?) {
@@ -192,7 +198,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.TEMPERATURE_PERIOD_UUID,
                 byteArrayOf(0x0e, 0x27)
             )
-        )
+        ) {
+            BleLog.i("开启温度通知间隔结果:" + it.characterUuid + "," + it.success)
+        }
         manager.enableNotification(
             BluetoothDeviceNotification.EnableNotificationData(
                 address,
@@ -200,7 +208,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.TEMPERATURE_DATA_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启温度通知结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
     fun registerAccelerometer(address: String?) {
@@ -212,7 +222,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.ACCELEROMETER_PERIOD_UUID,
                 byteArrayOf(0xD0.toByte(), 0x07.toByte())
             )
-        )
+        ) {
+            BleLog.i("开启加速度通知间隔结果:" + it.characterUuid + "," + it.success)
+        }
         manager.enableNotification(
             BluetoothDeviceNotification.EnableNotificationData(
                 address,
@@ -220,7 +232,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.ACCELEROMETER_DATA_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启加速度通知结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
     fun registerMagnetometer(address: String?) {
@@ -232,7 +246,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.MAGNETOMETER_PERIOD_UUID,
                 byteArrayOf(0x80.toByte(), 0x02.toByte())
             )
-        )
+        ) {
+            BleLog.i("开启磁力计通知间隔结果:" + it.characterUuid + "," + it.success)
+        }
         manager.enableNotification(
             BluetoothDeviceNotification.EnableNotificationData(
                 address,
@@ -240,7 +256,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.MAGNETOMETER_DATA_UUID,
                 MicrobitConstants.CCCD_UUID
             )
-        )
+        ) {
+            BleLog.i("开启磁力计通知结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
     fun readTemperature(address: String?) {
@@ -250,7 +268,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.TEMPERATURE_SERVICE_UUID,
                 MicrobitConstants.TEMPERATURE_DATA_UUID
             )
-        )
+        ) {
+            BleLog.i("读取温度结果:" + it.characterUuid + "," + it.success + "," + it.value)
+        }
     }
 
     fun writeTextToLed(address: String?) {
@@ -261,7 +281,9 @@ object BluetoothDeviceTest {
                 MicrobitConstants.LED_TEXT_UUID,
                 "a---b---c---d---e---0123"
             )
-        )
+        ) {
+            BleLog.i("写入LED结果:" + it.characterUuid + "," + it.success)
+        }
     }
 
 }
