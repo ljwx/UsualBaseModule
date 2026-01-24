@@ -22,12 +22,13 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         val serviceUuid: String,
         val characterUuid: String,
         val notificationUuid: String,
-        val isIndicationValue: Boolean = false
+        val isIndicationValue: Boolean = false,
+        val interval: Long = 0
     )
 
     data class NotificationData(
         val address: String?,
-        val characterUUID: String,
+        val characterUuid: String,
         val value: ByteArray?
     )
 
@@ -51,15 +52,26 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         return getDataFlow()
     }
 
+    private fun throttleNotify(data: EnableNotificationData) {
+        val key = getTempKey(data.address, data.characterUuid)
+        if (data.interval > 0) {
+            throttleIntervalMap[key] = data.interval
+        } else {
+            throttleIntervalMap.remove(key)
+        }
+    }
+
     override fun enableNotification(
         data: EnableNotificationData,
         callback: ((result: BleOperationResult.EnableNotification) -> Unit)?
     ) {
+        throttleNotify(data)
         sendOperation(BleCommunicateOperation.Notify(data, callback = callback))
     }
 
     override suspend fun enableNotification(data: EnableNotificationData): BleOperationResult.EnableNotification {
         val deferred = CompletableDeferred<BleOperationResult.EnableNotification>()
+        throttleNotify(data)
         sendOperation(BleCommunicateOperation.Notify(data, deferred = deferred))
         return try {
             withTimeout(core.getConfig().communicate.timeoutMills + 3000) {
@@ -127,10 +139,29 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         }
     }
 
+    private fun getTempKey(address: String?, characterUuid: String): String {
+        return "${address ?: ""}_${characterUuid.uppercase()}"
+    }
+
     override fun onNotification(
         data: NotificationData
     ) {
+        val key = getTempKey(data.address, data.characterUuid)
+        val interval = throttleIntervalMap[key] ?: 0
+        if (interval > 0) {
+            val lastEmitTime = lastEmitTimeMap[key] ?: 0
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastEmitTime < interval) {
+                return
+            }
+            lastEmitTimeMap[key] = currentTime
+        }
         onReceiveData(data)
+    }
+
+    override fun release() {
+        throttleIntervalMap.clear()
+        lastEmitTimeMap.clear()
     }
 
 }
