@@ -40,9 +40,9 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
-            registerOneShotCallback(operation.notifyData.characterUuid.uppercase(), continuation)
+            registerOneShotCallback(operation.address, operation.notifyData.characterUuid, continuation)
             executeEnableNotification(operation.notifyData).onFailure {
-                unregisterOneShotCallback(operation.notifyData.characterUuid.uppercase())
+                unregisterOneShotCallback(operation.address, operation.notifyData.characterUuid)
                 if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }
