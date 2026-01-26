@@ -6,11 +6,13 @@ import com.jdcr.baseble.BluetoothDeviceManager
 import com.jdcr.baseble.core.communication.notify.BluetoothDeviceNotification
 import com.jdcr.baseble.core.communication.read.BluetoothDeviceRead
 import com.jdcr.baseble.core.communication.write.BluetoothDeviceWrite
+import com.jdcr.baseble.core.state.BleAdapterState
 import com.jdcr.baseble.core.state.BleDeviceState
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
@@ -28,7 +30,7 @@ object BluetoothDeviceTest {
         scop.launch {
             manager.getNotifyDataFlow()/*.sample(100)*/.collect { data ->
                 data.value?.let { value ->
-                    when (data.characterUuid.uppercase()) {
+                    when (data.characterUUID.uppercase()) {
                         MicrobitConstants.BUTTON_A_STATE_UUID -> {
                             val state = value[0].toInt()
                             val stateStr =
@@ -71,10 +73,10 @@ object BluetoothDeviceTest {
         }
         scop.launch {
             manager.getNotifyDataFlow()
-                .filter { it.characterUuid.uppercase() == MicrobitConstants.MAGNETOMETER_DATA_UUID }
+                .filter { it.characterUUID.uppercase() == MicrobitConstants.MAGNETOMETER_DATA_UUID }
                 .sample(20000).collect { data ->
                     data.value?.let { value ->
-                        when (data.characterUuid.uppercase()) {
+                        when (data.characterUUID.uppercase()) {
                             MicrobitConstants.MAGNETOMETER_DATA_UUID -> {
                                 // X, Y, Z (Little Endian, Short)
                                 if (value.size >= 6) {
@@ -90,10 +92,10 @@ object BluetoothDeviceTest {
         }
         scop.launch {
             manager.getNotifyDataFlow()
-                .filter { it.characterUuid.uppercase() == MicrobitConstants.ACCELEROMETER_DATA_UUID }
+                .filter { it.characterUUID.uppercase() == MicrobitConstants.ACCELEROMETER_DATA_UUID }
                 .sample(19000).collect { data ->
                     data.value?.let { value ->
-                        when (data.characterUuid.uppercase()) {
+                        when (data.characterUUID.uppercase()) {
                             MicrobitConstants.ACCELEROMETER_DATA_UUID -> {
                                 // X, Y, Z (Little Endian, Short)
                                 // 数据格式: [xlow, xhigh, ylow, yhigh, zlow, zhigh]

@@ -20,6 +20,4 @@ interface BleNotifier {
 
     fun getNotifyDataFlow(): SharedFlow<NotificationData>
 
-    fun release()
-
 }

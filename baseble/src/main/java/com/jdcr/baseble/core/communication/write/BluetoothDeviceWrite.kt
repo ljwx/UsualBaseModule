@@ -108,9 +108,9 @@ class BluetoothDeviceWrite(private val core: BluetoothDeviceCore) :
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
-            registerOneShotCallback(operation.address, operation.writeData.characterUuid, continuation)
+            registerOneShotCallback(operation.writeData.characterUuid.uppercase(), continuation)
             executeWritePacket(byteData).onFailure {
-                unregisterOneShotCallback(operation.address, operation.writeData.characterUuid)
+                unregisterOneShotCallback(operation.writeData.characterUuid.uppercase())
                 if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }

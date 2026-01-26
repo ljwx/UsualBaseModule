@@ -96,11 +96,11 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
             }
         } catch (e: TimeoutCancellationException) {
             BleLog.e("操作超时:$address,$characterUuid")
-            unregisterOneShotCallback(address, characterUuid)
+            unregisterOneShotCallback(characterUuid.uppercase())
             Result.failure(e)
         } catch (e: Exception) {
             BleLog.e("操作异常::$address,$characterUuid,$e")
-            unregisterOneShotCallback(address, characterUuid)
+            unregisterOneShotCallback(characterUuid.uppercase())
             Result.failure(e)
         }
     }
@@ -111,42 +111,34 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
     }
 
     protected fun registerOneShotCallback(
-        address: String?,
         characterUuid: String,
         continuation: CancellableContinuation<Result<BleOperationResult>>
     ) {
-        val key = getOpKey(address, characterUuid)
-        val old = core.pendingOperations.remove(key)
+        val old = core.pendingOperations.remove(characterUuid.uppercase())
         if (old != null) {
-            BleLog.d("取消上一步的结果等待:$key")
+            BleLog.d("取消上一步的结果等待:$characterUuid")
             old.cancel()
         }
-        BleLog.d("3添加结果等待:$key")
-        core.pendingOperations[key] = continuation
+        BleLog.d("3添加结果等待:$characterUuid")
+        core.pendingOperations[characterUuid.uppercase()] = continuation
         continuation.invokeOnCancellation {
-            BleLog.d("结果等待被取消:$key")
-            core.pendingOperations.remove(key)
+            BleLog.d("结果等待被取消¬:$characterUuid")
+            core.pendingOperations.remove(characterUuid.uppercase())
         }
     }
 
-    protected fun unregisterOneShotCallback(address: String?, characterUuid: String) {
-        core.pendingOperations.remove(getOpKey(address, characterUuid))
+    protected fun unregisterOneShotCallback(characterUuid: String) {
+        core.pendingOperations.remove(characterUuid.uppercase())
     }
 
     protected fun onOperationResult(result: BleOperationResult) {
-        val key = getOpKey(result.address, result.characterUuid)
-        val continuation = core.pendingOperations.remove(key)
+        val continuation = core.pendingOperations.remove(result.characterUuid.uppercase())
         if (continuation != null && continuation.isActive) {
             BleLog.d("5收到等待结果:" + result.getDisplayTag())
             continuation.resume(Result.success(result), null)
         } else {
-            BleLog.d("5收到结果回调，但没有挂起的任务在等待: $key")
+            BleLog.d("5收到结果回调，但没有挂起的任务在等待: ${result.characterUuid}")
         }
-    }
-
-    private fun getOpKey(address: String?, characterUuid: String): String {
-        val finalAddress = core.getFinalAddress(address) ?: "null"
-        return "${finalAddress}_${characterUuid.uppercase()}"
     }
 
     fun emmitData(result: Data) {
