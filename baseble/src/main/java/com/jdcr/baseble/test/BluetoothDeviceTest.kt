@@ -30,7 +30,7 @@ object BluetoothDeviceTest {
         scop.launch {
             manager.getNotifyDataFlow()/*.sample(100)*/.collect { data ->
                 data.value?.let { value ->
-                    when (data.characterUUID.uppercase()) {
+                    when (data.characterUuid.uppercase()) {
                         MicrobitConstants.BUTTON_A_STATE_UUID -> {
                             val state = value[0].toInt()
                             val stateStr =
@@ -73,10 +73,10 @@ object BluetoothDeviceTest {
         }
         scop.launch {
             manager.getNotifyDataFlow()
-                .filter { it.characterUUID.uppercase() == MicrobitConstants.MAGNETOMETER_DATA_UUID }
+                .filter { it.characterUuid.uppercase() == MicrobitConstants.MAGNETOMETER_DATA_UUID }
                 .sample(20000).collect { data ->
                     data.value?.let { value ->
-                        when (data.characterUUID.uppercase()) {
+                        when (data.characterUuid.uppercase()) {
                             MicrobitConstants.MAGNETOMETER_DATA_UUID -> {
                                 // X, Y, Z (Little Endian, Short)
                                 if (value.size >= 6) {
@@ -92,10 +92,10 @@ object BluetoothDeviceTest {
         }
         scop.launch {
             manager.getNotifyDataFlow()
-                .filter { it.characterUUID.uppercase() == MicrobitConstants.ACCELEROMETER_DATA_UUID }
+                .filter { it.characterUuid.uppercase() == MicrobitConstants.ACCELEROMETER_DATA_UUID }
                 .sample(19000).collect { data ->
                     data.value?.let { value ->
-                        when (data.characterUUID.uppercase()) {
+                        when (data.characterUuid.uppercase()) {
                             MicrobitConstants.ACCELEROMETER_DATA_UUID -> {
                                 // X, Y, Z (Little Endian, Short)
                                 // 数据格式: [xlow, xhigh, ylow, yhigh, zlow, zhigh]
