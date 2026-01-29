@@ -23,13 +23,15 @@ class BluetoothDeviceCommunicationHandler(
 
     init {
 
-        fun removeExceptionOperation(characterUuid: String) {
-            core.pendingOperations[characterUuid]?.apply {
+        fun removeExceptionOperation(address: String?, characterUuid: String) {
+            val finalAddress = core.getFinalAddress(address) ?: "null"
+            val key = "${finalAddress}_${characterUuid.uppercase()}"
+            core.pendingOperations[key]?.apply {
                 if (isActive) {
                     resume(Result.failure(Exception("执行异常")), null)
                 }
             }
-            core.pendingOperations.remove(characterUuid)
+            core.pendingOperations.remove(key)
         }
 
         core.getScope().launch {
@@ -141,7 +143,7 @@ class BluetoothDeviceCommunicationHandler(
                         op.deferred?.complete(finalResult)
                         op.callback?.invoke(finalResult)
                     }
-                    removeExceptionOperation(op.characterUuid.uppercase())
+                    removeExceptionOperation(op.address, op.characterUuid)
                 }
             }
         }

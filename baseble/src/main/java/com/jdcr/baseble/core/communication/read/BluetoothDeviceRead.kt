@@ -27,9 +27,9 @@ open class BluetoothDeviceRead(private val core: BluetoothDeviceCore) :
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
-            registerOneShotCallback(operation.readData.characterUuid.uppercase(), continuation)
+            registerOneShotCallback(operation.address, operation.readData.characterUuid, continuation)
             executeReadData(operation.readData).onFailure {
-                unregisterOneShotCallback(operation.readData.characterUuid.uppercase())
+                unregisterOneShotCallback(operation.address, operation.readData.characterUuid)
                 if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }

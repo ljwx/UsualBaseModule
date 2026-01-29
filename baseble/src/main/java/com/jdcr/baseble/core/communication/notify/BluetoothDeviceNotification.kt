@@ -22,13 +22,14 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         val serviceUuid: String,
         val characterUuid: String,
         val notificationUuid: String = "00002902-0000-1000-8000-00805f9b34fb",
-        val isIndicationValue: Boolean = false
+        val isIndicationValue: Boolean = false,
+        val interval: Long = 0
     )
 
     data class NotificationData(
         val address: String?,
         val serviceUuid: String?,
-        val characterUUID: String,
+        val characterUuid: String,
         val value: ByteArray?
     )
 
@@ -40,9 +41,9 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
             operation.address,
             operation.characterUuid.uppercase()
         ) { continuation ->
-            registerOneShotCallback(operation.notifyData.characterUuid.uppercase(), continuation)
+            registerOneShotCallback(operation.address, operation.notifyData.characterUuid, continuation)
             executeEnableNotification(operation.notifyData).onFailure {
-                unregisterOneShotCallback(operation.notifyData.characterUuid.uppercase())
+                unregisterOneShotCallback(operation.address, operation.notifyData.characterUuid)
                 if (continuation.isActive) continuation.resume(Result.failure(it), null)
             }
         }
@@ -56,11 +57,13 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         data: EnableNotificationData,
         callback: ((result: BleOperationResult.EnableNotification) -> Unit)?
     ) {
+        throttleNotify(data)
         sendOperation(BleCommunicateOperation.Notify(data, callback = callback))
     }
 
     override suspend fun enableNotification(data: EnableNotificationData): BleOperationResult.EnableNotification {
         val deferred = CompletableDeferred<BleOperationResult.EnableNotification>()
+        throttleNotify(data)
         sendOperation(BleCommunicateOperation.Notify(data, deferred = deferred))
         return try {
             withTimeout(core.getConfig().communicate.timeoutMills + 3000) {
@@ -128,10 +131,38 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         }
     }
 
+    private fun throttleNotify(data: EnableNotificationData) {
+        val key = getTempKey(data.address, data.characterUuid)
+        if (data.interval > 0) {
+            throttleIntervalMap[key] = data.interval
+        } else {
+            throttleIntervalMap.remove(key)
+        }
+    }
+
+    private fun getTempKey(address: String?, characterUuid: String): String {
+        return "${address ?: ""}_${characterUuid.uppercase()}"
+    }
+
     override fun onNotification(
         data: NotificationData
     ) {
+        val key = getTempKey(data.address, data.characterUuid)
+        val interval = throttleIntervalMap[key] ?: 0
+        if (interval > 0) {
+            val lastEmitTime = lastEmitTimeMap[key] ?: 0
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastEmitTime < interval) {
+                return
+            }
+            lastEmitTimeMap[key] = currentTime
+        }
         onReceiveData(data)
+    }
+
+    override fun release() {
+        throttleIntervalMap.clear()
+        lastEmitTimeMap.clear()
     }
 
 }
