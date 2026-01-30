@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
 
@@ -87,13 +88,15 @@ object BluetoothDeviceUtils {
         }
     }
 
-    fun turnOnSwitch() {
-
+    fun isLocationEnable(context: Context): Boolean {
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnable = manager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val isNetworkEnable = manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        return isGpsEnable || isNetworkEnable
     }
 
-    fun openSwitchPage(context: Context) {
-        val switchIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-//        context.startActivity(switchIntent)
+    fun isBluetoothEnable(): Boolean {
+        return BluetoothAdapter.getDefaultAdapter()?.isEnabled == true
     }
 
 }
