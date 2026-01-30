@@ -123,3 +123,13 @@ sealed class BleDeviceState() {
     }
 
 }
+
+sealed class CurrentState() {
+    data object LocationPermissionDine : CurrentState()
+    data object LocationDisable : CurrentState()
+    data object BlePermissionDine : CurrentState()
+    data object BleDisable : CurrentState()
+    data object NoSupport : CurrentState()
+//    data object UnKnow : CurrentState()
+    data object Ready : CurrentState()
+}

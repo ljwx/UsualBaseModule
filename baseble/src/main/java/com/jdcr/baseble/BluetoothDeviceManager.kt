@@ -2,6 +2,7 @@ package com.jdcr.baseble
 
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.location.LocationManager
 import androidx.fragment.app.FragmentActivity
 import com.jdcr.baseble.config.BluetoothDeviceConfig
 import com.jdcr.baseble.core.BluetoothDeviceCore
@@ -18,6 +19,7 @@ import com.jdcr.baseble.core.permission.BluetoothDevicePermission
 import com.jdcr.baseble.core.permission.BluetoothEnableFragment
 import com.jdcr.baseble.core.permission.BluetoothSettingsFragment
 import com.jdcr.baseble.core.scan.BluetoothDeviceScanner
+import com.jdcr.baseble.core.state.CurrentState
 import com.jdcr.baseble.receiver.BluetoothDeviceEnableReceiver
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -84,6 +86,24 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
 
     fun openSettings(activity: FragmentActivity, callback: (enabled: Boolean) -> Unit) {
         BluetoothSettingsFragment.open(activity, callback)
+    }
+
+    fun isLocationEnable(context: Context): Boolean {
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnable = manager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val isNetworkEnable = manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        return isGpsEnable || isNetworkEnable
+    }
+
+    fun getCurrentState(): CurrentState {
+        return when {
+            core.getBluetoothAdapter() == null -> return CurrentState.NoSupport
+            !permission.checkLocationPermissions(core.getApplicationContext()) -> return CurrentState.LocationPermissionDine
+            !permission.checkBluetoothPermissions(core.getApplicationContext()) -> return CurrentState.BlePermissionDine
+            core.getBluetoothAdapter()?.isEnabled != true -> CurrentState.BleDisable
+            !isLocationEnable(core.getApplicationContext()) -> CurrentState.LocationDisable
+            else -> CurrentState.Ready
+        }
     }
 
     fun startScan(containName: Array<String?>?, timeout: Long? = null) =

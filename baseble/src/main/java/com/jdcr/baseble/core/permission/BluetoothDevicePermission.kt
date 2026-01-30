@@ -41,6 +41,29 @@ class BluetoothDevicePermission {
         }
     }
 
+    private fun getLocationPermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            emptyArray()
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        }
+    }
+
+    private fun getBluetoothPermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE
+            )
+        } else {
+            emptyArray()
+        }
+    }
+
     fun check(context: Context, type: Type): Boolean {
         return getPermissions(type).all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
@@ -120,6 +143,18 @@ class BluetoothDevicePermission {
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
     ) = checkAndRequest(activity, Type.ALL, callback)
+
+    fun checkLocationPermissions(context: Context): Boolean {
+        return getLocationPermissions().all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }.also { if (getLocationPermissions().isEmpty()) return true }
+    }
+
+    fun checkBluetoothPermissions(context: Context): Boolean {
+        return getBluetoothPermissions().all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }.also { if (getBluetoothPermissions().isEmpty()) return true }
+    }
 
     fun setPermissionsCallback(callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?) {
         this.permissionsCallback = callback
