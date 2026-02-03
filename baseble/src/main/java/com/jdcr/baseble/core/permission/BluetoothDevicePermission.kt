@@ -1,87 +1,21 @@
 package com.jdcr.baseble.core.permission
 
-import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.jdcr.baseble.util.BluetoothPermissionUtils
 
 class BluetoothDevicePermission {
 
-    enum class Type { SCAN, CONNECT, ADVERTISE, ALL }
-
     private var permissionsCallback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)? = null
-
-    fun getPermissions(type: Type): Array<String> {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            when (type) {
-                Type.SCAN -> arrayOf(Manifest.permission.BLUETOOTH_SCAN)
-                Type.CONNECT -> arrayOf(Manifest.permission.BLUETOOTH_CONNECT)
-                Type.ADVERTISE -> arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE)
-                Type.ALL -> arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                    Manifest.permission.BLUETOOTH_ADVERTISE
-                )
-            }
-        } else {
-            when (type) {
-                Type.SCAN -> arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-
-                Type.CONNECT, Type.ADVERTISE -> emptyArray() // 普通权限无需动态申请
-                Type.ALL -> arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            }
-        }
-    }
-
-    private fun getLocationPermissions(): Array<String> {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            emptyArray()
-        } else {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        }
-    }
-
-    private fun getBluetoothPermissions(): Array<String> {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_ADVERTISE
-            )
-        } else {
-            emptyArray()
-        }
-    }
-
-    fun check(context: Context, type: Type): Boolean {
-        return getPermissions(type).all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }.also { if (getPermissions(type).isEmpty()) return true }
-    }
-
-    fun getDenied(context: Context, type: Type): Array<String> {
-        return getPermissions(type).filter {
-            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-        }.toTypedArray()
-    }
 
     fun request(
         activity: FragmentActivity,
-        type: Type,
+        type: BluetoothPermissionUtils.Type,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
     ) {
-        val denied = getDenied(activity, type)
+        val denied = BluetoothPermissionUtils.getDenied(activity, type)
         if (denied.isNotEmpty()) {
             if (permissionsCallback == null) {
                 BluetoothDevicePermissionFragment.requestPermission(activity, denied, callback)
@@ -99,10 +33,10 @@ class BluetoothDevicePermission {
 
     fun checkAndRequest(
         activity: FragmentActivity,
-        type: Type,
+        type: BluetoothPermissionUtils.Type,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
     ): Boolean {
-        return if (check(activity, type)) {
+        return if (BluetoothPermissionUtils.check(activity, type)) {
             true
         } else {
             request(activity, type, callback)
@@ -110,50 +44,55 @@ class BluetoothDevicePermission {
         }
     }
 
-    fun checkScan(context: Context) = check(context, Type.SCAN)
-    fun checkConnect(context: Context) = check(context, Type.CONNECT)
-    fun checkAll(context: Context) = check(context, Type.ALL)
+    fun checkScan(context: Context) =
+        BluetoothPermissionUtils.check(context, BluetoothPermissionUtils.Type.SCAN)
+
+    fun checkConnect(context: Context) =
+        BluetoothPermissionUtils.check(context, BluetoothPermissionUtils.Type.CONNECT)
+
+    fun checkAll(context: Context) =
+        BluetoothPermissionUtils.check(context, BluetoothPermissionUtils.Type.ALL)
 
     fun requestScan(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = request(activity, Type.SCAN, callback)
+    ) = request(activity, BluetoothPermissionUtils.Type.SCAN, callback)
 
     fun requestConnect(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = request(activity, Type.CONNECT, callback)
+    ) = request(activity, BluetoothPermissionUtils.Type.CONNECT, callback)
 
     fun requestAll(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = request(activity, Type.ALL, callback)
+    ) = request(activity, BluetoothPermissionUtils.Type.ALL, callback)
 
     fun checkAndRequestScan(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = checkAndRequest(activity, Type.SCAN, callback)
+    ) = checkAndRequest(activity, BluetoothPermissionUtils.Type.SCAN, callback)
 
     fun checkAndRequestConnect(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = checkAndRequest(activity, Type.CONNECT, callback)
+    ) = checkAndRequest(activity, BluetoothPermissionUtils.Type.CONNECT, callback)
 
     fun checkAndRequestAll(
         activity: FragmentActivity,
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
-    ) = checkAndRequest(activity, Type.ALL, callback)
+    ) = checkAndRequest(activity, BluetoothPermissionUtils.Type.ALL, callback)
 
     fun checkLocationPermissions(context: Context): Boolean {
-        return getLocationPermissions().all {
+        return BluetoothPermissionUtils.getLocationPermissions().all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }.also { if (getLocationPermissions().isEmpty()) return true }
+        }.also { if (BluetoothPermissionUtils.getLocationPermissions().isEmpty()) return true }
     }
 
     fun checkBluetoothPermissions(context: Context): Boolean {
-        return getBluetoothPermissions().all {
+        return BluetoothPermissionUtils.getBluetoothPermissions().all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }.also { if (getBluetoothPermissions().isEmpty()) return true }
+        }.also { if (BluetoothPermissionUtils.getBluetoothPermissions().isEmpty()) return true }
     }
 
     fun setPermissionsCallback(callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?) {

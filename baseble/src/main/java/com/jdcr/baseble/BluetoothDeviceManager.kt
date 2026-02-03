@@ -22,6 +22,7 @@ import com.jdcr.baseble.core.scan.BluetoothDeviceScanner
 import com.jdcr.baseble.core.state.BleAvailableState
 import com.jdcr.baseble.receiver.BluetoothDeviceEnableReceiver
 import com.jdcr.baseble.util.BluetoothDeviceUtils
+import com.jdcr.baseble.util.BluetoothPermissionUtils
 import kotlinx.coroutines.flow.SharedFlow
 
 
@@ -77,7 +78,7 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
         permission.setPermissionsCallback(callback)
     }
 
-    fun setAdapterEnableListener(context: Context, listener: ((enable: Boolean) -> Unit)?) {
+    private fun setAdapterEnableListener(context: Context, listener: ((enable: Boolean) -> Unit)?) {
         adapterEnableReceiver = BluetoothDeviceEnableReceiver.registerEnable(context, listener)
     }
 
@@ -95,12 +96,18 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
 
     fun getAvailableState(): BleAvailableState {
         return when {
-            core.getBluetoothAdapter() == null -> return BleAvailableState.NoSupport
+            !BluetoothDeviceUtils.isBluetoothSupported(core.getApplicationContext()) -> return BleAvailableState.BleNoSupport
             !permission.checkLocationPermissions(core.getApplicationContext()) -> return BleAvailableState.LocationPermissionDine
             !permission.checkBluetoothPermissions(core.getApplicationContext()) -> return BleAvailableState.BlePermissionDine
             core.getBluetoothAdapter()?.isEnabled != true -> BleAvailableState.BleDisable
             !BluetoothDeviceUtils.isLocationEnable(core.getApplicationContext()) -> BleAvailableState.LocationDisable
             else -> BleAvailableState.Ready
+        }
+    }
+
+    fun setAvailableCallback(callback: (availableState: BleAvailableState) -> Unit) {
+        setAdapterEnableListener(core.getApplicationContext()) {
+            callback.invoke(getAvailableState())
         }
     }
 

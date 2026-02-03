@@ -129,7 +129,7 @@ sealed class BleAvailableState() {
     data object LocationDisable : BleAvailableState()
     data object BlePermissionDine : BleAvailableState()
     data object BleDisable : BleAvailableState()
-    data object NoSupport : BleAvailableState()
-//    data object UnKnow : CurrentState()
+    data object BleNoSupport : BleAvailableState()
     data object Ready : BleAvailableState()
+    //    data object UnKnow : CurrentState()
 }
