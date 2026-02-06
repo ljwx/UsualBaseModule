@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    // Kotlin 1.7 无 kotlin.compose 插件，用 composeOptions 指定编译器版本
+    // alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -43,6 +44,9 @@ android {
     buildFeatures {
         compose true
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.4.8'  // 与 Kotlin 1.7.22 兼容
+    }
 }
 
 dependencies {
@@ -74,7 +78,7 @@ dependencies {
     implementation project(path: ":basemultiplestate")
     implementation project(path: ":baseeventbus")
 //    implementation project(path: ":basenetwork")
-    implementation project(path: ":basekmplog")
+//    implementation project(path: ":basekmplog")  // 与 basekmplog 同开同关
 //    implementation project(path: ":selftestcompose")
     implementation project(path: ":baseble")
 

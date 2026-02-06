@@ -9,11 +9,11 @@ import com.jdcr.baseble.util.safeName
 sealed class BleAdapterState {
     abstract val desc: String
 
-    data object Disable : BleAdapterState() {
+    object Disable : BleAdapterState() {
         override val desc = "蓝牙未开启"
     }
 
-    data object Idle : BleAdapterState() {
+    object Idle : BleAdapterState() {
         override val desc = "闲置状态"
     }
 
@@ -51,7 +51,7 @@ sealed class BleDeviceState() {
 
     abstract val desc: String
 
-    data object Idle : BleDeviceState() {
+    object Idle : BleDeviceState() {
         override val desc = "闲置未使用"
     }
 
@@ -125,11 +125,11 @@ sealed class BleDeviceState() {
 }
 
 sealed class BleAvailableState() {
-    data object LocationPermissionDine : BleAvailableState()
-    data object LocationDisable : BleAvailableState()
-    data object BlePermissionDine : BleAvailableState()
-    data object BleDisable : BleAvailableState()
-    data object BleNoSupport : BleAvailableState()
-    data object Ready : BleAvailableState()
-    //    data object UnKnow : CurrentState()
+    object LocationPermissionDine : BleAvailableState()
+    object LocationDisable : BleAvailableState()
+    object BlePermissionDine : BleAvailableState()
+    object BleDisable : BleAvailableState()
+    object BleNoSupport : BleAvailableState()
+    object Ready : BleAvailableState()
+    //    object UnKnow : CurrentState()
 }
