@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothPermissionUtils
 
 class BluetoothDevicePermission {
@@ -17,6 +18,7 @@ class BluetoothDevicePermission {
     ) {
         val denied = BluetoothPermissionUtils.getDenied(activity, type)
         if (denied.isNotEmpty()) {
+            BleLog.i("发起权限请求:$denied")
             if (permissionsCallback == null) {
                 BluetoothDevicePermissionFragment.requestPermission(activity, denied, callback)
             } else {
@@ -37,6 +39,7 @@ class BluetoothDevicePermission {
         callback: ((allGranted: Boolean, Map<String, Boolean>) -> Unit)?
     ): Boolean {
         return if (BluetoothPermissionUtils.check(activity, type)) {
+            BleLog.i("所有权限检查通过")
             true
         } else {
             request(activity, type, callback)

@@ -21,6 +21,8 @@ import com.jdcr.baseble.core.permission.BluetoothSettingsFragment
 import com.jdcr.baseble.core.scan.BluetoothDeviceScanner
 import com.jdcr.baseble.core.state.BleAvailableState
 import com.jdcr.baseble.receiver.BluetoothDeviceEnableReceiver
+import com.jdcr.baseble.receiver.BluetoothDeviceLocationEnableReceiver
+import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
 import com.jdcr.baseble.util.BluetoothPermissionUtils
 import kotlinx.coroutines.flow.SharedFlow
@@ -53,6 +55,7 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
     }
 
     private var adapterEnableReceiver: BluetoothDeviceEnableReceiver? = null
+    private var locationEnableReceiver: BluetoothDeviceLocationEnableReceiver? = null
     private val permission by lazy { BluetoothDevicePermission() }
     private val core = BluetoothDeviceCore(context).apply { setManagerConfig(config) }
     private val scanner = BluetoothDeviceScanner(core)
@@ -82,6 +85,14 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
         adapterEnableReceiver = BluetoothDeviceEnableReceiver.registerEnable(context, listener)
     }
 
+    private fun setLocationEnableListener(
+        context: Context,
+        listener: ((enable: Boolean) -> Unit)?
+    ) {
+        locationEnableReceiver =
+            BluetoothDeviceLocationEnableReceiver.registerEnable(context, listener)
+    }
+
     fun enableAdapter(activity: FragmentActivity, callback: (enabled: Boolean) -> Unit) {
         BluetoothEnableFragment.request(activity, callback)
     }
@@ -102,11 +113,14 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
             core.getBluetoothAdapter()?.isEnabled != true -> BleAvailableState.BleDisable
             !BluetoothDeviceUtils.isLocationEnable(core.getApplicationContext()) -> BleAvailableState.LocationDisable
             else -> BleAvailableState.Ready
-        }
+        }.apply { BleLog.i("当前可用状态:$this") }
     }
 
     fun setAvailableCallback(callback: (availableState: BleAvailableState) -> Unit) {
         setAdapterEnableListener(core.getApplicationContext()) {
+            callback.invoke(getAvailableState())
+        }
+        setLocationEnableListener(core.getApplicationContext()) {
             callback.invoke(getAvailableState())
         }
     }
@@ -152,6 +166,7 @@ class BluetoothDeviceManager private constructor(context: Context, config: Bluet
 
     fun release() {
         adapterEnableReceiver?.release(core.getApplicationContext())
+        locationEnableReceiver?.release(core.getApplicationContext())
         permission.release()
         core.release()
         scanner.release()

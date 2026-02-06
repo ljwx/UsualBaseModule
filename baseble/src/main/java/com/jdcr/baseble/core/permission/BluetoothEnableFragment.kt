@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import com.jdcr.baseble.util.BleLog
 
 class BluetoothEnableFragment : Fragment() {
 
@@ -20,6 +21,7 @@ class BluetoothEnableFragment : Fragment() {
 
     override fun onStart() {
         super.onStart()
+        BleLog.i("请求打开蓝牙")
         launcher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
     }
 

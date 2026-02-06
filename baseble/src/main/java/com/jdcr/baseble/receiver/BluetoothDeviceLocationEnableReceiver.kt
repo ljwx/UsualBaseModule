@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.location.LocationManager
+import com.jdcr.baseble.util.BleLog
+import com.jdcr.baseble.util.BluetoothDeviceUtils
 
 class BluetoothDeviceLocationEnableReceiver(private var listener: ((enable: Boolean) -> Unit)?) :
     BroadcastReceiver() {
@@ -19,6 +21,7 @@ class BluetoothDeviceLocationEnableReceiver(private var listener: ((enable: Bool
             listener: ((enable: Boolean) -> Unit)?
         ): BluetoothDeviceLocationEnableReceiver {
             unregisterEnable(context)
+            BleLog.i("注册定位开关变化广播")
             val receiver = BluetoothDeviceLocationEnableReceiver(listener)
             this.receiver = receiver
             context.registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
@@ -38,10 +41,10 @@ class BluetoothDeviceLocationEnableReceiver(private var listener: ((enable: Bool
 
     override fun onReceive(context: Context?, intent: Intent) {
         if (intent.action == LocationManager.MODE_CHANGED_ACTION) {
-            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                BluetoothAdapter.STATE_ON -> listener?.invoke(true)
-                BluetoothAdapter.STATE_OFF -> listener?.invoke(false)
-            }
+            context ?: return
+            val isLocationEnable = BluetoothDeviceUtils.isLocationEnable(context)
+            BleLog.i("定位开关变化,是否开启:$isLocationEnable")
+            listener?.invoke(isLocationEnable)
         }
     }
 
@@ -49,6 +52,7 @@ class BluetoothDeviceLocationEnableReceiver(private var listener: ((enable: Bool
         unregisterEnable(context)
         listener = null
         receiver = null
+        BleLog.i("注销定位开关监听")
     }
 
 }
