@@ -155,8 +155,4 @@ class BluetoothDeviceCommunicationHandler(
 
     val read: BleReader = bleRead
 
-    fun release() {
-        notify.release()
-    }
-
 }

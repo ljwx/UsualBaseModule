@@ -21,13 +21,14 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
         val address: String?,
         val serviceUuid: String,
         val characterUuid: String,
-        val notificationUuid: String,
+        val notificationUuid: String = "00002902-0000-1000-8000-00805f9b34fb",
         val isIndicationValue: Boolean = false,
         val interval: Long = 0
     )
 
     data class NotificationData(
         val address: String?,
+        val serviceUuid: String?,
         val characterUuid: String,
         val value: ByteArray?
     )
@@ -50,15 +51,6 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
 
     override fun getNotifyDataFlow(): SharedFlow<NotificationData> {
         return getDataFlow()
-    }
-
-    private fun throttleNotify(data: EnableNotificationData) {
-        val key = getTempKey(data.address, data.characterUuid)
-        if (data.interval > 0) {
-            throttleIntervalMap[key] = data.interval
-        } else {
-            throttleIntervalMap.remove(key)
-        }
     }
 
     override fun enableNotification(
@@ -136,6 +128,15 @@ class BluetoothDeviceNotification(private val core: BluetoothDeviceCore) :
                 BleLog.d(it)
                 return Result.failure(IllegalStateException(it))
             }
+        }
+    }
+
+    private fun throttleNotify(data: EnableNotificationData) {
+        val key = getTempKey(data.address, data.characterUuid)
+        if (data.interval > 0) {
+            throttleIntervalMap[key] = data.interval
+        } else {
+            throttleIntervalMap.remove(key)
         }
     }
 

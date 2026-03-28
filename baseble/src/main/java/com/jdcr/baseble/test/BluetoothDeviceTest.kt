@@ -6,11 +6,13 @@ import com.jdcr.baseble.BluetoothDeviceManager
 import com.jdcr.baseble.core.communication.notify.BluetoothDeviceNotification
 import com.jdcr.baseble.core.communication.read.BluetoothDeviceRead
 import com.jdcr.baseble.core.communication.write.BluetoothDeviceWrite
+import com.jdcr.baseble.core.state.BleAdapterState
 import com.jdcr.baseble.core.state.BleDeviceState
 import com.jdcr.baseble.util.BleLog
 import com.jdcr.baseble.util.BluetoothDeviceUtils
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch

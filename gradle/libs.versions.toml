@@ -1,6 +1,6 @@
 [versions]
 agp = "8.9.1" # Android Gradle 插件，用于构建和打包 Android 应用
-kotlin = "2.0.21" # Kotlin 编程语言核心版本
+kotlin = "1.7.22" # 与 toolssdk 兼容；库用 1.7 编译，下游 App 用更高版本 Kotlin 也可
 coreKtx = "1.16.0" # AndroidX Core 库的 Kotlin 扩展，提供更便捷的 Android API 访问
 junit = "4.14-SNAPSHOT" # JUnit 4 单元测试框架
 junitVersion = "1.2.1" # AndroidX Test JUnit 扩展，提供 Android 专用的测试功能
@@ -10,8 +10,8 @@ activityCompose = "1.10.1" # Activity 与 Jetpack Compose 集成的支持库
 composeBom = "2024.09.00" # Jetpack Compose 版本管理 BOM，确保组件版本兼容性
 appcompat = "1.7.0" # 提供对旧 Android 版本的兼容功能
 material = "1.12.0" # Material Design 组件库，用于构建符合设计规范的 UI
-kotlinStdlib = "2.0.21" # Kotlin 标准库，包含核心语言功能
-kotlinTest = "2.0.21" # Kotlin 测试库，提供测试相关的工具和注解
+kotlinStdlib = "1.7.22" # 与 kotlin 版本一致
+kotlinTest = "1.7.22" # Kotlin 测试库，提供测试相关的工具和注解
 runner = "1.6.2" # AndroidX Test Runner，用于运行 Android 测试
 core = "1.6.1" # AndroidX Test Core 库，提供基础测试功能
 

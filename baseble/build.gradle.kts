@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.jdcr.baseble"
-    compileSdk = 35
+    // 与主工程 toolssdk 对齐，避免合并 manifest/资源 时的 SDK 要求冲突
+    compileSdk = 33
 
     defaultConfig {
         minSdk = 21
@@ -25,11 +26,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Java 8 与主工程 toolssdk 一致，保证字节码与脱糖兼容
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
     // 这一步对于 JitPack 生成文档和源码很重要
 //    publishing {
@@ -41,13 +43,13 @@ android {
 }
 
 dependencies {
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // 使用显式版本，避免通过 libs.versions.toml 带入过高 AndroidX 版本导致与主工程冲突
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.4.0")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 }
 

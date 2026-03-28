@@ -46,5 +46,6 @@ dependencies {
     // 版本 1.5.0 是一个稳定版本，与大多数 Android 项目兼容
     api "androidx.annotation:annotation:1.5.0"
 
-    implementation project(path: ":basekmplog")
+    // 与 settings.gradle 中 basekmplog 同开同关（Kotlin 1.7 时关闭）
+    // implementation project(path: ":basekmplog")
 }

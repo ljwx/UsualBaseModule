@@ -52,7 +52,7 @@ open class BleCommunicationBase<Data>(private val core: BluetoothDeviceCore) {
         data class EnableNotification(
             override val address: String?,
             override val characterUuid: String,
-            val notificationUuid: String,
+            val notificationUuid: String?,
             override val success: Boolean
         ) : BleOperationResult(address, characterUuid, success)
 
