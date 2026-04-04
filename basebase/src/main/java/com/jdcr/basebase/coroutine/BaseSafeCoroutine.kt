@@ -1,7 +1,6 @@
 package com.jdcr.basebase.coroutine
 
 import android.util.Log
-import androidx.lifecycle.LifecycleCoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -11,36 +10,37 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.TimeoutException
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 class BaseSafeCoroutine(
-    lifecycleCoroutineScope: LifecycleCoroutineScope? = null,
-    tag: String? = null
+    parentScope: CoroutineScope? = null,
+    private val tag: String = "BaseSafeCoroutine",
+    private val defaultContext: CoroutineContext = Dispatchers.IO
 ) : SafeCoroutine {
 
-    private val coroutineName by lazy { CoroutineName(tag ?: "") }
+    private val coroutineName = CoroutineName(tag)
     private val globalExceptionHandler by lazy {
         CoroutineExceptionHandler { context, throwable ->
-            Log.e((tag ?: "") + "协程异常", throwable.message ?: "无报错信息")
+            Log.e(tag + "协程异常", throwable.message ?: "无报错信息")
             throwable.printStackTrace()
         }
     }
-    private val coroutineContext by lazy { SupervisorJob() + Dispatchers.IO + globalExceptionHandler + (if (tag.isNullOrEmpty()) EmptyCoroutineContext else coroutineName) }
-    private val _scope by lazy { lifecycleCoroutineScope ?: CoroutineScope(coroutineContext) }
+    private val _job = SupervisorJob(parentScope?.coroutineContext?.get(Job))
+    private val parentContext =
+        parentScope?.coroutineContext?.minusKey(Job) ?: EmptyCoroutineContext
+    private val coroutineContext by lazy { parentContext + defaultContext + _job + globalExceptionHandler + coroutineName }
+    private val _scope = CoroutineScope(coroutineContext)
 
     override fun launch(
         context: CoroutineContext,
         block: suspend CoroutineScope.() -> Unit
-    ): Job {
-        return _scope.launch(context, block = block)
-    }
+    ): Job = _scope.launch(context, block = block)
 
     override fun launchWithTimeout(
         timeoutMs: Long,
@@ -49,53 +49,52 @@ class BaseSafeCoroutine(
         block: suspend CoroutineScope.() -> Unit
     ): Job {
         return launch(context) {
-            val result = withTimeoutOrNull(timeoutMs, block = block)
-            if (result == null) {
+            try {
+                withTimeout(timeoutMs, block = block)
+            } catch (e: TimeoutCancellationException) {
                 timeout()
             }
         }
     }
 
-    override suspend fun <T> launchWithTimeout(
+    override suspend fun <T> withTimeoutResult(
         timeoutMs: Long,
-        block: suspend CoroutineScope.() -> T?
-    ): Result<T?> {
-        val result: T? = withTimeoutOrNull(timeoutMs, block = block)
-        if (result == null) {
-            return Result.failure(TimeoutException("超时了"))
-        } else {
-            return Result.success(result)
+        block: suspend CoroutineScope.() -> T
+    ): Result<T> {
+        return try {
+            val result = withTimeout(timeoutMs, block = block)
+            Result.success(result)
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(TimeoutException(e.message ?: "超时了"))
         }
     }
 
-    override fun <T> launchRetry(
+    override suspend fun <T> retry(
         times: Int,
         delayMs: Long,
-        context: CoroutineContext,
-        block: suspend CoroutineScope.() -> Result<T>
-    ): Job {
-        return launch(context) {
-            repeat(times) { index ->
-                val result = block()
-                if (result.isSuccess) return@launch
-                if (index < times - 1) delay(delayMs)
-            }
+        block: suspend () -> Result<T>
+    ): Result<T> {
+        require(times > 0) { "次数需要大于0" }
+        var lastResult: Result<T> = Result.failure(Exception("重试也没成功"))
+        repeat(times) { index ->
+            lastResult = block()
+            if (lastResult.isSuccess) return lastResult
+            if (index < times - 1) delay(delayMs)
         }
+        return lastResult
     }
 
     override fun <T> async(
         context: CoroutineContext,
         block: suspend CoroutineScope.() -> T
-    ): Deferred<T?> {
-        return _scope.async(context, block = block)
+    ): Deferred<T> = _scope.async(context, block = block)
+
+    override fun cancelChildren() {
+        _job.cancelChildren()
     }
 
-    override fun cancel() {
-        coroutineContext[Job]?.cancelChildren()
-    }
-
-    override fun onDestroy() {
-        _scope.cancel()
+    override fun cancelScope() {
+        _job.cancel()
     }
 
 }

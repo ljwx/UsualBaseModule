@@ -20,25 +20,24 @@ interface SafeCoroutine {
         block: suspend CoroutineScope.() -> Unit
     ): Job
 
-    suspend fun <T> launchWithTimeout(
+    suspend fun <T> withTimeoutResult(
         timeoutMs: Long,
-        block: suspend CoroutineScope.() -> T?
-    ): Result<T?>
+        block: suspend CoroutineScope.() -> T
+    ): Result<T>
 
-    fun <T> launchRetry(
+    suspend fun <T> retry(
         times: Int = 3,
         delayMs: Long = 1000,
-        context: CoroutineContext = EmptyCoroutineContext,
-        block: suspend CoroutineScope.() -> Result<T>
-    ): Job
+        block: suspend () -> Result<T>
+    ): Result<T>
 
     fun <T> async(
         context: CoroutineContext = EmptyCoroutineContext,
         block: suspend CoroutineScope.() -> T
-    ): Deferred<T?>
+    ): Deferred<T>
 
-    fun cancel()
+    fun cancelChildren()
 
-    fun onDestroy()
+    fun cancelScope()
 
 }
